@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>Tesearis.DotNetAssemblyQuery</RootNamespace>
+        <AssemblyName>Tesearis.DotNetAssemblyQuery.Cli</AssemblyName>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>daq</ToolCommandName>
+        <PackageId>dotnet-assembly-query</PackageId>
+        <Description>A tiny, fast CLI that answers "where is this symbol / what calls it" by reading compiled .NET assemblies and their PDBs - no build, no workspace, no decompiler.</Description>
+        <PackageTags>dotnet-tool;cecil;pdb;symbols;go-to-definition;find-references</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" PackagePath=""/>
+        <None Include="../../README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="../Tesearis.DotNetAssemblyQuery/Tesearis.DotNetAssemblyQuery.csproj"/>
+        <ProjectReference Include="../Tesearis.DotNetAssemblyQuery.Daemon/Tesearis.DotNetAssemblyQuery.Daemon.csproj"/>
+        <PackageReference Include="System.CommandLine" Version="2.0.11"/>
+    </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="Tesearis.DotNetAssemblyQuery.Tests"/>
+    </ItemGroup>
+</Project>

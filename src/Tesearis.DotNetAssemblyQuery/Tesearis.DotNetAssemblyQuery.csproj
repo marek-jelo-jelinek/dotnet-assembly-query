@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <RootNamespace>Tesearis.DotNetAssemblyQuery</RootNamespace>
+        <AssemblyName>Tesearis.DotNetAssemblyQuery</AssemblyName>
+        <PackageId>Tesearis.DotNetAssemblyQuery</PackageId>
+        <Description>Reads compiled .NET assemblies and their portable PDBs to answer "where is this symbol / what calls it" - symbol lookup, hover info, go-to-definition and find-references, resolving straight back to real source file:line via debug sequence points. No build, no workspace, no decompiler. This is the library; see the `dotnet-assembly-query` global tool for the CLI.</Description>
+        <PackageTags>cecil;pdb;symbols;go-to-definition;find-references</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Mono.Cecil" Version="0.11.6"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" PackagePath=""/>
+        <None Include="../../README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="Tesearis.DotNetAssemblyQuery.Tests"/>
+    </ItemGroup>
+</Project>

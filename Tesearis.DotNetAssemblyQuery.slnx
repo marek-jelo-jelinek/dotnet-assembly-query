@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Tesearis.DotNetAssemblyQuery/Tesearis.DotNetAssemblyQuery.csproj" />
+    <Project Path="src/Tesearis.DotNetAssemblyQuery.Daemon/Tesearis.DotNetAssemblyQuery.Daemon.csproj" />
+    <Project Path="src/Tesearis.DotNetAssemblyQuery.Cli/Tesearis.DotNetAssemblyQuery.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tesearis.DotNetAssemblyQuery.Tests/Tesearis.DotNetAssemblyQuery.Tests.csproj" />
+    <Project Path="tests/Tesearis.DotNetAssemblyQuery.Daemon.Tests/Tesearis.DotNetAssemblyQuery.Daemon.Tests.csproj" />
+  </Folder>
+</Solution>

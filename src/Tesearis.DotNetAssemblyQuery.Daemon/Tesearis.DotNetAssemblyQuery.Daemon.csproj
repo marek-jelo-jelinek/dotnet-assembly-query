@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <RootNamespace>Tesearis.DotNetAssemblyQuery</RootNamespace>
+        <AssemblyName>Tesearis.DotNetAssemblyQuery.Daemon</AssemblyName>
+        <PackageId>Tesearis.DotNetAssemblyQuery.Daemon</PackageId>
+        <Description>The warm-cache background daemon behind the `dotnet-assembly-query` CLI, factored out so other front ends can host it against their own already-loaded Mono.Cecil modules without reimplementing the pipe/process subsystem.</Description>
+        <PackageTags>cecil;daemon;named-pipes</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="../Tesearis.DotNetAssemblyQuery/Tesearis.DotNetAssemblyQuery.csproj"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" PackagePath=""/>
+        <None Include="../../README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="Tesearis.DotNetAssemblyQuery.Daemon.Tests"/>
+        <InternalsVisibleTo Include="Tesearis.DotNetAssemblyQuery.Tests"/>
+        <InternalsVisibleTo Include="Tesearis.DotNetAssemblyQuery.Unity.Tests"/>
+    </ItemGroup>
+</Project>
