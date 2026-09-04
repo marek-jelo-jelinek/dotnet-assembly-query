@@ -76,7 +76,7 @@ jobs:
             if [ "$rid" = "linux-x64" ]; then
               aot_flag="-p:PublishAot=true"
             fi
-            dotnet publish src/Tesearis.DotNetAssemblyQuery.Cli/Tesearis.DotNetAssemblyQuery.Cli.csproj -c Release -r "$rid" \
+            dotnet publish src/Tesearis.DotNetAssemblyQuery.Cli/Tesearis.DotNetAssemblyQuery.Cli.csproj -c Release -f net10.0 -r "$rid" \
               $aot_flag --self-contained true -o "artifacts/publish/$rid"
           done
 
