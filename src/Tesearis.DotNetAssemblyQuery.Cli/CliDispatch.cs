@@ -218,12 +218,27 @@ internal static class CliDispatch
 
     private static int PrintImplementations(List<TypeDefinition> allTypes, string name, string? @namespace, string? assemblyName, bool json)
     {
+        // Distinguish "the type itself isn't indexed" from "it's indexed but has no
+        // implementers" - both would otherwise collapse into an empty match list and
+        // print a misleading "no implementations" for e.g. BCL types like IDisposable
+        // whose defining assembly (System.Private.CoreLib.dll) usually isn't indexed.
+        var targetExists = AssemblyQuery.FindSymbol(allTypes, name, "type", @namespace, assemblyName).Count > 0;
+
         var matches = AssemblyQuery.Implementations(allTypes, name, @namespace, assemblyName);
 
         if (json)
         {
             var results = matches.Select(t => new ImplementationsResultJson(Output.Kind(t), t.FullName, Output.AssemblyName(t))).ToList();
             Console.WriteLine(JsonSerializer.Serialize(results, CliOutputJsonContext.Default.ListImplementationsResultJson));
+            return 0;
+        }
+
+        if (!targetExists)
+        {
+            var hint = autoFrameworkAttempted
+                ? $"Type '{name}' was not found in the indexed assemblies, and --auto-framework couldn't locate/resolve it in the local .NET shared framework either."
+                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --assembly or --dir), or retry with --auto-framework.";
+            Console.WriteLine(hint);
             return 0;
         }
 

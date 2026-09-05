@@ -478,12 +478,16 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithNoMatch_PrintsNotFound()
+    public void Run_Implementations_WithTypeNotIndexed_PrintsNotIndexed()
     {
+        // "ThisSymbolDoesNotExistAnywhere" isn't a type declared in the indexed assembly at all -
+        // that's a different failure than "the type is indexed but nothing implements it", and
+        // should say so instead of implying zero implementations exist.
         var (exitCode, output, _) = RunCli("implementations", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
-        Assert.That(output, Does.Contain("No implementations of 'ThisSymbolDoesNotExistAnywhere' found."));
+        Assert.That(output, Does.Contain("Type 'ThisSymbolDoesNotExistAnywhere' was not found in the indexed assemblies."));
+    }
     }
 
     [Test]
