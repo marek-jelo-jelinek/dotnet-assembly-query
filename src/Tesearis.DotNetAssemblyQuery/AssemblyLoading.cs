@@ -9,7 +9,11 @@ public static class AssemblyLoading
 {
     /// <summary>
     /// Resolves DLL paths from <c>--assembly</c>/<c>--dir</c>, falling back to the current
-    /// directory. Unresolved patterns are reported in <paramref name="warnings"/>.
+    /// directory. Unresolved patterns are reported in <paramref name="warnings"/>. A <c>--dir</c>
+    /// scan silently drops native (non-.NET) DLLs it finds and reports a single collapsed count
+    /// in <paramref name="warnings"/> instead of failing to load each one individually later.
+    /// DLLs named explicitly via <c>--assembly</c> are never filtered this way, so a direct request
+    /// about a specific file still gets a real per-file load failure if it turns out not to be managed.
     /// </summary>
     public static List<string> DiscoverDllPaths(IReadOnlyList<string> assemblyPaths, IReadOnlyList<string> directories, out List<string> warnings)
     {
@@ -33,6 +37,7 @@ public static class AssemblyLoading
             effectiveDirectories.Add(Directory.GetCurrentDirectory());
         }
 
+        var nativeSkippedCount = 0;
         foreach (var dir in effectiveDirectories)
         {
             if (!Directory.Exists(dir))
@@ -43,12 +48,27 @@ public static class AssemblyLoading
 
             try
             {
-                paths.AddRange(Directory.GetFiles(dir, "*.dll"));
+                foreach (var dllPath in Directory.GetFiles(dir, "*.dll"))
+                {
+                    if (ManagedAssemblyDetection.IsManagedAssembly(dllPath))
+                    {
+                        paths.Add(dllPath);
+                    }
+                    else
+                    {
+                        nativeSkippedCount++;
+                    }
+                }
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
                 warnings.Add($"--dir could not be read: {dir} ({ex.Message})");
             }
+        }
+
+        if (nativeSkippedCount > 0)
+        {
+            warnings.Add($"skipped {nativeSkippedCount} native (non-.NET) DLL(s) found via --dir scan");
         }
 
         // Normalize before dedup so the same DLL reached via two different path spellings (e.g.

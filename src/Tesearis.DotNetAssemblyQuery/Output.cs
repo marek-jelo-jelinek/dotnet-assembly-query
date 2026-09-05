@@ -45,7 +45,8 @@ public static class Output
     public static string Signature(IMemberDefinition member) => member switch
     {
         TypeDefinition type => $"{Kind(type)} {type.FullName}" + (type.BaseType != null ? $" : {type.BaseType.FullName}" : ""),
-        MethodDefinition method => $"{Visibility(method.IsPublic, method.IsPrivate, method.IsFamily, method.IsAssembly, method.IsFamilyOrAssembly, method.IsFamilyAndAssembly)} {method.ReturnType.FullName} {QualifiedName(method)}",
+        MethodDefinition method => $"{Visibility(method.IsPublic, method.IsPrivate, method.IsFamily, method.IsAssembly, method.IsFamilyOrAssembly, method.IsFamilyAndAssembly)} {method.ReturnType.FullName} {QualifiedName(method)}"
+            + (method.PInvokeInfo != null ? $" // P/Invoke: {method.PInvokeInfo.Module.Name}!{method.PInvokeInfo.EntryPoint}" : ""),
         FieldDefinition field => $"{Visibility(field.IsPublic, field.IsPrivate, field.IsFamily, field.IsAssembly, field.IsFamilyOrAssembly, field.IsFamilyAndAssembly)} {field.FieldType.FullName} {field.FullName}",
         PropertyDefinition property => property.FullName,
         _ => member.FullName,

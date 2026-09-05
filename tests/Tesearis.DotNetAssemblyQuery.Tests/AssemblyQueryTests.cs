@@ -72,6 +72,15 @@ public class AssemblyQueryTests
                 // lookups the way Greeter's own Greet method does.
                 string IGreeter.Greet(string name) => "Please, " + name;
             }
+
+            public static class NativeInterop
+            {
+                [System.Runtime.InteropServices.DllImport("native.dll")]
+                public static extern int NativeAdd(int a, int b);
+
+                [System.Runtime.InteropServices.DllImport("native.dll", EntryPoint = "NativeSubImpl")]
+                public static extern int NativeSub(int a, int b);
+            }
         }
         """;
 
@@ -182,6 +191,47 @@ public class AssemblyQueryTests
         Assert.That(warnings, Is.Empty);
         Assert.That(paths.Any(p => Path.GetFileName(p) == "Nested.dll"), Is.True);
         Assert.That(paths.Any(p => Path.GetFileName(p) == "Fixture.dll"), Is.True);
+    }
+
+    [Test]
+    public void DiscoverDllPaths_DirScanDropsNativeDllsAndReportsACollapsedWarning()
+    {
+        var scanDir = Path.Combine(_fixtureDir, "dir-scan-native");
+        Directory.CreateDirectory(scanDir);
+        var managedPath = Path.Combine(scanDir, "Managed.dll");
+        var nativePath = Path.Combine(scanDir, "Native.dll");
+        File.Copy(_dllPath, managedPath, overwrite: true);
+        File.WriteAllBytes(nativePath, PeFixtures.MinimalPeHeader(managed: false));
+
+        var paths = AssemblyLoading.DiscoverDllPaths(assemblyPaths: [], directories: [scanDir], out var warnings);
+
+        Assert.That(paths.Select(Path.GetFileName), Is.EquivalentTo(new[] { "Managed.dll" }));
+        Assert.That(warnings, Is.EqualTo(new[] { "skipped 1 native (non-.NET) DLL(s) found via --dir scan" }));
+    }
+
+    [Test]
+    public void DiscoverDllPaths_DirScanWithOnlyManagedDllsReportsNoNativeWarning()
+    {
+        var scanDir = Path.Combine(_fixtureDir, "dir-scan-managed-only");
+        Directory.CreateDirectory(scanDir);
+        File.Copy(_dllPath, Path.Combine(scanDir, "Managed.dll"), overwrite: true);
+
+        var paths = AssemblyLoading.DiscoverDllPaths(assemblyPaths: [], directories: [scanDir], out var warnings);
+
+        Assert.That(paths.Select(Path.GetFileName), Is.EquivalentTo(new[] { "Managed.dll" }));
+        Assert.That(warnings, Is.Empty);
+    }
+
+    [Test]
+    public void DiscoverDllPaths_ExplicitAssemblyPathIsNotFilteredEvenIfNative()
+    {
+        var nativePath = Path.Combine(_fixtureDir, "ExplicitNative.dll");
+        File.WriteAllBytes(nativePath, PeFixtures.MinimalPeHeader(managed: false));
+
+        var paths = AssemblyLoading.DiscoverDllPaths(assemblyPaths: [nativePath], directories: [], out var warnings);
+
+        Assert.That(paths, Is.EqualTo(new[] { nativePath }));
+        Assert.That(warnings, Is.Empty);
     }
 
     [Test]
@@ -563,6 +613,27 @@ public class AssemblyQueryTests
 
         Assert.That(hovers, Has.Count.EqualTo(symbols.Count));
         Assert.That(hovers, Has.All.Matches<string>(h => h.Contains("public") && h.Contains("Prefix")));
+    }
+
+    [Test]
+    public void Hover_OnPInvokeMethod_ShowsTargetModuleAndEntryPoint()
+    {
+        var types = LoadFixtureTypes();
+
+        var defaultEntryPoint = AssemblyQuery.Hover(types, "NativeAdd").Single();
+        Assert.That(defaultEntryPoint, Does.Contain("// P/Invoke: native.dll!NativeAdd"));
+
+        var explicitEntryPoint = AssemblyQuery.Hover(types, "NativeSub").Single();
+        Assert.That(explicitEntryPoint, Does.Contain("// P/Invoke: native.dll!NativeSubImpl"));
+    }
+
+    [Test]
+    public void Hover_OnNonPInvokeMethod_HasNoPInvokeSuffix()
+    {
+        var types = LoadFixtureTypes();
+
+        var hover = AssemblyQuery.Hover(types, "Greet").First();
+        Assert.That(hover, Does.Not.Contain("P/Invoke"));
     }
 
     [Test]
