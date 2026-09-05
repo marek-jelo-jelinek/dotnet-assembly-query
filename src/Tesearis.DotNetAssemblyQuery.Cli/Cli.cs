@@ -14,6 +14,7 @@ internal sealed class CliOptions
     public string? Kind { get; init; }
     public string? Namespace { get; init; }
     public string? AssemblyName { get; init; }
+    public bool AutoFramework { get; init; }
     public bool Json { get; init; }
 }
 
@@ -69,7 +70,7 @@ public static class Cli
 
         if (!options.NoDaemon)
         {
-            var request = new DaemonRequest(options.Command, options.Name, options.SourceRoot, dllPaths, options.Kind, options.Namespace, options.AssemblyName, options.Json);
+            var request = new DaemonRequest(options.Command, options.Name, options.SourceRoot, dllPaths, options.Kind, options.Namespace, options.AssemblyName, options.AutoFramework, options.Json);
             if (DaemonClient.TryRun(request, out var daemonExitCode))
             {
                 return daemonExitCode;
@@ -77,6 +78,7 @@ public static class Cli
         }
 
         var modules = new List<ModuleDefinition>();
+        var frameworkModules = new List<ModuleDefinition>();
         int exitCode;
         try
         {
@@ -92,7 +94,25 @@ public static class Cli
                 allTypes.AddRange(module.GetTypes());
             }
 
-            exitCode = CliDispatch.Dispatch(options, modules, allTypes);
+            // One-shot (no daemon to cache across calls): load the local shared framework's
+            // types only if implementations --auto-framework actually needs them.
+            List<TypeDefinition> LoadAutoFrameworkTypes()
+            {
+                if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var frameworkDir) || frameworkDir == null) return [];
+
+                var paths = FrameworkDiscovery.DiscoverAssemblyPaths(frameworkDir);
+                frameworkModules.AddRange(AssemblyLoading.LoadModules(paths));
+
+                var types = new List<TypeDefinition>();
+                foreach (var module in frameworkModules)
+                {
+                    types.AddRange(module.GetTypes());
+                }
+
+                return types;
+            }
+
+            exitCode = CliDispatch.Dispatch(options, modules, allTypes, LoadAutoFrameworkTypes);
         }
         catch (Exception ex)
         {
@@ -102,6 +122,11 @@ public static class Cli
         finally
         {
             foreach (var module in modules)
+            {
+                module.Dispose();
+            }
+
+            foreach (var module in frameworkModules)
             {
                 module.Dispose();
             }
@@ -128,7 +153,7 @@ public static class Cli
     }
 
     /// <summary>Adapts a <see cref="DaemonRequest"/> (already validated over the wire) into a <see cref="CliOptions"/> and runs it against the daemon's resident modules.</summary>
-    private static int DispatchDaemonRequest(DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes)
+    private static int DispatchDaemonRequest(DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes)
     {
         var options = new CliOptions
         {
@@ -138,8 +163,9 @@ public static class Cli
             Kind = request.Kind,
             Namespace = request.Namespace,
             AssemblyName = request.AssemblyName,
+            AutoFramework = request.AutoFramework,
             Json = request.Json,
         };
-        return CliDispatch.Dispatch(options, modules, allTypes);
+        return CliDispatch.Dispatch(options, modules, allTypes, autoFrameworkTypes);
     }
 }

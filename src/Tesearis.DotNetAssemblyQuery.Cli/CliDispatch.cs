@@ -11,7 +11,7 @@ namespace Tesearis.DotNetAssemblyQuery;
 /// </summary>
 internal static class CliDispatch
 {
-    public static int Dispatch(CliOptions options, List<ModuleDefinition> modules, List<TypeDefinition> allTypes)
+    public static int Dispatch(CliOptions options, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes = null)
     {
         try
         {
@@ -23,7 +23,7 @@ internal static class CliDispatch
                 "go-to-definition" => PrintGoToDefinition(allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "find-references" => PrintFindReferences(modules, allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "list-members" => PrintListMembers(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Json),
-                "implementations" => PrintImplementations(allTypes, options.Name, options.Namespace, options.AssemblyName, options.Json),
+                "implementations" => PrintImplementations(allTypes, options.Name, options.Namespace, options.AssemblyName, options.Json, options.AutoFramework ? autoFrameworkTypes : null),
                 "list-assemblies" => PrintListAssemblies(modules, options.Json),
                 _ => UnknownCommand(options.Command),
             };
@@ -216,13 +216,25 @@ internal static class CliDispatch
         return 0;
     }
 
-    private static int PrintImplementations(List<TypeDefinition> allTypes, string name, string? @namespace, string? assemblyName, bool json)
+    private static int PrintImplementations(List<TypeDefinition> allTypes, string name, string? @namespace, string? assemblyName, bool json, Func<List<TypeDefinition>>? autoFrameworkTypes)
     {
         // Distinguish "the type itself isn't indexed" from "it's indexed but has no
         // implementers" - both would otherwise collapse into an empty match list and
         // print a misleading "no implementations" for e.g. BCL types like IDisposable
         // whose defining assembly (System.Private.CoreLib.dll) usually isn't indexed.
         var targetExists = AssemblyQuery.FindSymbol(allTypes, name, "type", @namespace, assemblyName).Count > 0;
+
+        var autoFrameworkAttempted = false;
+        if (!targetExists && autoFrameworkTypes != null)
+        {
+            autoFrameworkAttempted = true;
+            var frameworkTypes = autoFrameworkTypes();
+            if (frameworkTypes.Count > 0)
+            {
+                allTypes = [.. allTypes, .. frameworkTypes];
+                targetExists = AssemblyQuery.FindSymbol(allTypes, name, "type", @namespace, assemblyName).Count > 0;
+            }
+        }
 
         var matches = AssemblyQuery.Implementations(allTypes, name, @namespace, assemblyName);
 

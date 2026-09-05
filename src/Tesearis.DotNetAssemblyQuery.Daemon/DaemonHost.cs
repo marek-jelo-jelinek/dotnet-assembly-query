@@ -44,6 +44,11 @@ public static class DaemonHost
             return 1;
         }
 
+        // Populated lazily, at most once, the first time a request needs it (see
+        // GetOrLoadFrameworkTypes) - kept resident for the daemon's lifetime since the shared
+        // framework on disk doesn't change during a normal edit/rebuild loop, unlike `modules`.
+        var frameworkCache = new FrameworkCache();
+
         var pipeName = DllSetSignature.PipeName(signature);
         DaemonRegistry.Write(new DaemonRegistryEntry(signature, pipeName, Environment.ProcessId, dllPaths, DateTime.UtcNow));
 
@@ -80,7 +85,7 @@ public static class DaemonHost
 
                 idleTimer.Change(TimeSpan.FromSeconds(idleTimeoutSeconds), Timeout.InfiniteTimeSpan);
 
-                if (!HandleConnection(server, dllPaths, modules, fingerprints, dispatch))
+                if (!HandleConnection(server, dllPaths, modules, fingerprints, dispatch, frameworkCache))
                 {
                     break; // Version mismatch or all backing files gone - self-terminate.
                 }
@@ -96,6 +101,14 @@ public static class DaemonHost
                 module.Dispose();
             }
 
+            if (frameworkCache.Modules != null)
+            {
+                foreach (var module in frameworkCache.Modules)
+                {
+                    module.Dispose();
+                }
+            }
+
             DaemonRegistry.Delete(signature);
             DaemonLock.Release(lockHandle, signature);
         }
@@ -104,7 +117,7 @@ public static class DaemonHost
     }
 
     /// <summary>Handles exactly one request. Returns false when the daemon should stop serving after this connection.</summary>
-    private static bool HandleConnection(NamedPipeServerStream server, List<string> dllPaths, List<ModuleDefinition> modules, Dictionary<string, DllFingerprint> fingerprints, DaemonDispatch dispatch)
+    private static bool HandleConnection(NamedPipeServerStream server, List<string> dllPaths, List<ModuleDefinition> modules, Dictionary<string, DllFingerprint> fingerprints, DaemonDispatch dispatch, FrameworkCache frameworkCache)
     {
         try
         {
@@ -149,7 +162,9 @@ public static class DaemonHost
                 allTypes.AddRange(module.GetTypes());
             }
 
-            var (exitCode, stdout, stderr) = RunDispatchCapturingOutput(dispatch, request, modules, allTypes);
+            List<TypeDefinition> AutoFrameworkTypes() => GetOrLoadFrameworkTypes(modules, frameworkCache);
+
+            var (exitCode, stdout, stderr) = RunDispatchCapturingOutput(dispatch, request, modules, allTypes, request.AutoFramework ? AutoFrameworkTypes : null);
 
             PipeFraming.WriteJson(server, new DaemonResponse(exitCode, stdout, stderr), DaemonJsonContext.Default.DaemonResponse);
             return true;
@@ -162,7 +177,29 @@ public static class DaemonHost
         }
     }
 
-    private static (int ExitCode, string Stdout, string Stderr) RunDispatchCapturingOutput(DaemonDispatch dispatch, DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes)
+    private static List<TypeDefinition> GetOrLoadFrameworkTypes(List<ModuleDefinition> modules, FrameworkCache frameworkCache)
+    {
+        if (frameworkCache.Types != null) return frameworkCache.Types;
+
+        var loadedModules = new List<ModuleDefinition>();
+        if (FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var frameworkDir) && frameworkDir != null)
+        {
+            var paths = FrameworkDiscovery.DiscoverAssemblyPaths(frameworkDir);
+            loadedModules.AddRange(AssemblyLoading.LoadModules(paths));
+        }
+
+        var types = new List<TypeDefinition>();
+        foreach (var module in loadedModules)
+        {
+            types.AddRange(module.GetTypes());
+        }
+
+        frameworkCache.Modules = loadedModules;
+        frameworkCache.Types = types;
+        return types;
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunDispatchCapturingOutput(DaemonDispatch dispatch, DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes)
     {
         var originalOut = Console.Out;
         var originalError = Console.Error;
@@ -172,7 +209,7 @@ public static class DaemonHost
         Console.SetError(errorWriter);
         try
         {
-            var exitCode = dispatch(request, modules, allTypes);
+            var exitCode = dispatch(request, modules, allTypes, autoFrameworkTypes);
             return (exitCode, outWriter.ToString(), errorWriter.ToString());
         }
         finally
@@ -230,6 +267,11 @@ public static class DaemonHost
     {
         var raw = Environment.GetEnvironmentVariable("DAQ_DAEMON_IDLE_TIMEOUT_SECONDS");
         return int.TryParse(raw, out var seconds) && seconds > 0 ? seconds : DefaultIdleTimeoutSeconds;
+    }
+    private sealed class FrameworkCache
+    {
+        public List<ModuleDefinition>? Modules;
+        public List<TypeDefinition>? Types;
     }
 }
 

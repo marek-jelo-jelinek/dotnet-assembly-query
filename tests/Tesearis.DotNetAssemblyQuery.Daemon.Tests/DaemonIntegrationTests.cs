@@ -19,7 +19,7 @@ namespace Tesearis.DotNetAssemblyQuery.Tests;
 [TestFixture]
 public class DaemonIntegrationTests
 {
-    private static int Dispatch(DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes)
+    private static int Dispatch(DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes)
     {
         Assert.That(request.Command, Is.EqualTo("find-symbol"));
         var matches = AssemblyQuery.FindSymbol(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName);

@@ -25,7 +25,7 @@ public class CliOptionsParserTests
                 _parsedOptions = options;
                 return 0;
             },
-            (_, _, _) => throw new InvalidOperationException("Not exercised: daemon subcommand actions are never run in this test file."));
+            (_, _, _, _) => throw new InvalidOperationException("Not exercised: daemon subcommand actions are never run in this test file."));
 
         var parseResult = root.Parse(args);
         var errors = string.Join("\n", parseResult.Errors.Select(e => e.Message));

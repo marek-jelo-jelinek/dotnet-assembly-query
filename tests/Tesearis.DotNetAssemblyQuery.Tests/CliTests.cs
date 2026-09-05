@@ -1,4 +1,7 @@
 using System.Text.Json;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using NUnit.Framework;
 
 namespace Tesearis.DotNetAssemblyQuery.Tests;
@@ -488,6 +491,96 @@ public class CliTests
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Type 'ThisSymbolDoesNotExistAnywhere' was not found in the indexed assemblies."));
     }
+
+    [Test]
+    public void Run_Implementations_WithAutoFramework_ResolvesFrameworkType()
+    {
+        // Unlike the tests above, this fixture's own directory does NOT contain
+        // System.Private.CoreLib.dll - only --auto-framework's discovery of the local shared
+        // framework can make IDisposable resolvable here.
+        var dllPath = CompileFixtureWithoutCoreLib();
+        if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
+        {
+            Assert.Ignore("No local .NET shared framework install found on this machine.");
+        }
+
+        try
+        {
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--auto-framework");
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(output, Does.Contain("MemoryStream"));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(dllPath)!, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Run_Implementations_WithTypeNotIndexed_WithoutAutoFramework_StillJustHints()
+    {
+        // Same fixture as above, but without the flag - the hint fires, no framework scan happens.
+        var dllPath = CompileFixtureWithoutCoreLib();
+        try
+        {
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath);
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(output, Does.Contain("Type 'IDisposable' was not found in the indexed assemblies."));
+            Assert.That(output, Does.Not.Contain("MemoryStream"));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(dllPath)!, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Compiles a throwaway fixture assembly into its own fresh directory, referencing (but not
+    /// copying alongside) the running process's own assemblies - so, unlike <see cref="SomeRealAssemblyPath"/>,
+    /// the fixture's directory alone never contains System.Private.CoreLib.dll.
+    /// </summary>
+    private static string CompileFixtureWithoutCoreLib()
+    {
+        const string source = "namespace Fixture { public class Placeholder { } }";
+
+        var dir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+        var dllPath = Path.Combine(dir, "Fixture.NoCoreLib.dll");
+
+        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+        var references = new List<MetadataReference>();
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
+            {
+                references.Add(MetadataReference.CreateFromFile(assembly.Location));
+            }
+        }
+
+        var compilation = CSharpCompilation.Create(
+            "Fixture.NoCoreLib",
+            [syntaxTree],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var dllStream = File.Create(dllPath);
+        var emitResult = compilation.Emit(dllStream, options: new EmitOptions());
+        Assert.That(emitResult.Success, Is.True, string.Join("\n", emitResult.Diagnostics));
+
+        return dllPath;
+    }
+
+    [Test]
+    public void Run_Implementations_WithIndexedTypeAndNoImplementers_PrintsNotFound()
+    {
+        // "String" is sealed and indexed (it's declared in SomeRealAssemblyPath), so this
+        // exercises "type resolved, zero implementers" as distinct from "type not indexed".
+        var (exitCode, output, _) = RunCli("implementations", "String", "--assembly", SomeRealAssemblyPath);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(output, Does.Contain("No implementations of 'String' found."));
     }
 
     [Test]

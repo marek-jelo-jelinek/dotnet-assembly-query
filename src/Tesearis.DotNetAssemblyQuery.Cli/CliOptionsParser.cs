@@ -6,9 +6,9 @@ namespace Tesearis.DotNetAssemblyQuery;
 /// Builds daq's command-line grammar with System.CommandLine: a root command with one subcommand
 /// per query kind (<c>find-symbol</c>, <c>hover</c>, <c>go-to-definition</c>, <c>find-references</c>)
 /// plus a <c>daemon</c> command with <c>status</c>/<c>stop</c>/<c>start</c> subcommands. Query
-/// subcommands share one set of options/arguments (mirroring daq-unity's <c>QueryOptionsParser</c>);
-/// <c>daemon start</c>/<c>daemon stop</c> only ever add the subset of those they support, so passing
-/// e.g. <c>--source-root</c> to them is rejected as an unrecognized option.
+/// subcommands share one set of options/arguments; <c>daemon start</c>/<c>daemon stop</c> only ever
+/// add the subset of those they support, so passing e.g. <c>--source-root</c> to them is rejected
+/// as an unrecognized option.
 /// </summary>
 internal static class CliOptionsParser
 {
@@ -50,6 +50,12 @@ internal static class CliOptionsParser
         Description = "Run the daemon in the foreground instead of detaching.",
     };
 
+    private static readonly Option<bool> AutoFrameworkOption = new("--auto-framework")
+    {
+        Description = "If the target type isn't indexed, discover and load the local machine's " +
+            "matching .NET shared framework (Microsoft.NETCore.App) to resolve it.",
+    };
+
     private static readonly Option<int?> DaemonIdleTimeoutOption = BuildDaemonIdleTimeoutOption();
 
     private static readonly Option<string?> KindOption = BuildKindOption();
@@ -76,6 +82,7 @@ internal static class CliOptionsParser
         Name = 1 << 0,
         Kind = 1 << 1,
         Filters = 1 << 2, // --namespace + --assembly-name
+        AutoFramework = 1 << 3,
     }
 
     /// <summary>Builds the root command; <paramref name="runQuery"/> is invoked once per matched query subcommand.</summary>
@@ -92,7 +99,7 @@ internal static class CliOptionsParser
         }
 
         root.Subcommands.Add(BuildSubcommand("list-members", runQuery, nameKindFilters));
-        root.Subcommands.Add(BuildSubcommand("implementations", runQuery, SubcommandFeatures.Name | SubcommandFeatures.Filters));
+        root.Subcommands.Add(BuildSubcommand("implementations", runQuery, SubcommandFeatures.Name | SubcommandFeatures.Filters | SubcommandFeatures.AutoFramework));
         root.Subcommands.Add(BuildSubcommand("list-assemblies", runQuery, SubcommandFeatures.None));
 
         root.Subcommands.Add(BuildDaemonCommand(daemonDispatch));
@@ -116,6 +123,8 @@ internal static class CliOptionsParser
             command.Options.Add(AssemblyNameOption);
         }
 
+        if (features.HasFlag(SubcommandFeatures.AutoFramework)) command.Options.Add(AutoFrameworkOption);
+
         command.Options.Add(JsonOption);
 
         command.SetAction(parseResult =>
@@ -130,6 +139,7 @@ internal static class CliOptionsParser
                 Kind = features.HasFlag(SubcommandFeatures.Kind) ? parseResult.GetValue(KindOption) : null,
                 Namespace = features.HasFlag(SubcommandFeatures.Filters) ? parseResult.GetValue(NamespaceOption) : null,
                 AssemblyName = features.HasFlag(SubcommandFeatures.Filters) ? parseResult.GetValue(AssemblyNameOption) : null,
+                AutoFramework = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(AutoFrameworkOption),
                 Json = parseResult.GetValue(JsonOption),
             };
             options.AssemblyPaths.AddRange(parseResult.GetValue(AssemblyOption) ?? []);
