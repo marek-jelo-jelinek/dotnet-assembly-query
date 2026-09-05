@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "marek-jelo-jelinek",
+  "owner": {
+    "name": "Marek Jelinek",
+    "email": "marek.jelinek@live.com"
+  },
+  "plugins": [
+    {
+      "name": "daq",
+      "source": "./",
+      "description": "Query compiled .NET assemblies for types, members, references, and implementations",
+      "version": "1.0.0"
+    }
+  ]
+}
