@@ -33,23 +33,54 @@ public static class SourceLocator
         }
 
         // No sequence points on the member itself (e.g. a type, plain field, or a property with
-        // no resolvable accessor) - fall back to the file of any method on the containing type, as
-        // an approximation. Its line number would be arbitrary (just whichever method happens to be
-        // first), so it's deliberately left out - only the file is reported.
+        // no resolvable accessor) - fall back to the file of any method nearby, as an approximation.
+        // Its line number would be arbitrary (just whichever method happens to be first), so it's
+        // deliberately left out - only the file is reported.
         var containingType = member as TypeDefinition ?? member.DeclaringType;
-        SequencePoint? anySequencePoint = null;
-        if (containingType != null)
-        {
-            foreach (var candidate in containingType.Methods)
-            {
-                if (!candidate.HasBody) continue;
-
-                anySequencePoint = FirstVisibleSequencePoint(candidate.DebugInformation?.SequencePoints);
-                if (anySequencePoint != null) break;
-            }
-        }
+        var anySequencePoint = FindApproximateSequencePoint(containingType);
 
         return anySequencePoint != null ? FormatApproximateLocation(anySequencePoint, sourceRoot) : null;
+    }
+
+    /// <summary>
+    /// Finds a sequence point to approximate <paramref name="containingType"/>'s source file.
+    /// Tries the type's own methods, then walks up its declaring-type chain (for a type nested in
+    /// one with methods, e.g. an enum nested in the class that uses it), then falls back to any
+    /// other type in the same namespace and module - types with no methods of their own (enums,
+    /// chiefly: they compile down to only fields) otherwise never resolve to any location at all.
+    /// </summary>
+    private static SequencePoint? FindApproximateSequencePoint(TypeDefinition? containingType)
+    {
+        for (var type = containingType; type != null; type = type.DeclaringType)
+        {
+            var sequencePoint = FirstSequencePointOnType(type);
+            if (sequencePoint != null) return sequencePoint;
+        }
+
+        if (containingType == null) return null;
+
+        foreach (var sibling in containingType.Module.GetTypes())
+        {
+            if (sibling == containingType || sibling.Namespace != containingType.Namespace) continue;
+
+            var sequencePoint = FirstSequencePointOnType(sibling);
+            if (sequencePoint != null) return sequencePoint;
+        }
+
+        return null;
+    }
+
+    private static SequencePoint? FirstSequencePointOnType(TypeDefinition type)
+    {
+        foreach (var candidate in type.Methods)
+        {
+            if (!candidate.HasBody) continue;
+
+            var sequencePoint = FirstVisibleSequencePoint(candidate.DebugInformation?.SequencePoints);
+            if (sequencePoint != null) return sequencePoint;
+        }
+
+        return null;
     }
 
     /// <summary>Resolves a property's location via its get/set accessor's own sequence points, if either has one.</summary>

@@ -81,6 +81,13 @@ public class AssemblyQueryTests
                 [System.Runtime.InteropServices.DllImport("native.dll", EntryPoint = "NativeSubImpl")]
                 public static extern int NativeSub(int a, int b);
             }
+
+            public enum Volume
+            {
+                Quiet,
+                Normal,
+                Loud,
+            }
         }
         """;
 
@@ -472,6 +479,36 @@ public class AssemblyQueryTests
         var greeterType = types.Single(t => t.FullName == "Fixture.Greeter");
 
         var location = SourceLocator.ResolveSourceLocation(greeterType, _fixtureDir);
+
+        Assert.That(location, Is.Not.Null);
+        Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.Line, Is.Null);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
+    }
+
+    [Test]
+    public void ResolveSourceLocation_FallsBackToApproximateLocationForEnums()
+    {
+        var types = LoadFixtureTypes();
+        var volumeType = types.Single(t => t.FullName == "Fixture.Volume");
+
+        var location = SourceLocator.ResolveSourceLocation(volumeType, _fixtureDir);
+
+        // Volume has no methods of its own (enums never do), so this only resolves via the
+        // namespace-sibling fallback.
+        Assert.That(location, Is.Not.Null);
+        Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.Line, Is.Null);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
+    }
+
+    [Test]
+    public void ResolveSourceLocation_FallsBackToApproximateLocationForEnumMembers()
+    {
+        var types = LoadFixtureTypes();
+        var member = SymbolIndex.MatchMembers(types, "Loud").OfType<FieldDefinition>().First();
+
+        var location = SourceLocator.ResolveSourceLocation(member, _fixtureDir);
 
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.True);
