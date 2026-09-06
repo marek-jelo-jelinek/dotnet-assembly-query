@@ -24,6 +24,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Breaking:** CLI assembly renamed to `daq` (was `Tesearis.DotNetAssemblyQuery.Cli`). Published
+  standalone binaries are now named `daq`/`daq.exe`.
 - **Breaking:** `implementations`: distinguishes "not indexed" from "no implementers found"
   (plain-text and `--json`); `--json` now returns an object (`TargetIndexed`, `Hint`,
   `Implementations`) instead of a bare array.
@@ -42,6 +44,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `--help` usage line showed the long assembly name instead of `daq`.
 - framework auto-discovery: a `DOTNET_ROOT` pointing at a directory without a `shared/`
   folder was mistaken for a valid runtime root.
 

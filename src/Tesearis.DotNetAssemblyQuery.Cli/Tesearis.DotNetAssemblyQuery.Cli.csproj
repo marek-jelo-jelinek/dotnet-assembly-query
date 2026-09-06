@@ -2,7 +2,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <RootNamespace>Tesearis.DotNetAssemblyQuery</RootNamespace>
-        <AssemblyName>Tesearis.DotNetAssemblyQuery.Cli</AssemblyName>
+        <AssemblyName>daq</AssemblyName>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>daq</ToolCommandName>
         <PackageId>dotnet-assembly-query</PackageId>
