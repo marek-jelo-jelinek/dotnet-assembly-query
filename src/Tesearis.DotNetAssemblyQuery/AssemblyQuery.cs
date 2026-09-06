@@ -27,7 +27,7 @@ public static class AssemblyQuery
     /// containing assembly name - same filters as <see cref="FindSymbol"/>, but for discovery
     /// when the caller only knows part of a name.
     /// </summary>
-    public static IReadOnlyList<IMemberDefinition> Search(IReadOnlyList<TypeDefinition> allTypes, string term, string? kind = null, string? @namespace = null, string? assemblyName = null)
+    public static IReadOnlyList<IMemberDefinition> FindByContains(IReadOnlyList<TypeDefinition> allTypes, string term, string? kind = null, string? @namespace = null, string? assemblyName = null)
     {
         var matches = SymbolIndex.MatchMembersContaining([.. allTypes], term);
 

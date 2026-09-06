@@ -518,7 +518,7 @@ public class AssemblyQueryTests
         var types = LoadFixtureTypes();
 
         // "oud" only occurs inside "LoudGreeter" - nothing else in the fixture contains it.
-        var matches = AssemblyQuery.Search(types, "oud", kind: "type");
+        var matches = AssemblyQuery.FindByContains(types, "oud", kind: "type");
 
         Assert.That(matches, Has.Count.EqualTo(1));
         Assert.That(matches[0].Name, Is.EqualTo("LoudGreeter"));
@@ -529,8 +529,8 @@ public class AssemblyQueryTests
     {
         var types = LoadFixtureTypes();
 
-        var lower = AssemblyQuery.Search(types, "greeter", kind: "type");
-        var upper = AssemblyQuery.Search(types, "GREETER", kind: "type");
+        var lower = AssemblyQuery.FindByContains(types, "greeter", kind: "type");
+        var upper = AssemblyQuery.FindByContains(types, "GREETER", kind: "type");
 
         Assert.That(lower, Has.Count.EqualTo(4));
         Assert.That(upper.Select(m => m.Name), Is.EquivalentTo(lower.Select(m => m.Name)));
@@ -541,7 +541,7 @@ public class AssemblyQueryTests
     {
         var types = LoadFixtureTypes();
 
-        var matches = AssemblyQuery.Search(types, "ThisTermMatchesNothingInTheFixture");
+        var matches = AssemblyQuery.FindByContains(types, "ThisTermMatchesNothingInTheFixture");
 
         Assert.That(matches, Is.Empty);
     }
@@ -554,11 +554,11 @@ public class AssemblyQueryTests
         // "LoudGreeter" only occurs as a type name in the fixture - no method's simple name
         // contains it (PoliteGreeter's explicit IGreeter.Greet impl is qualified "IGreeter.Greet",
         // not "LoudGreeter").
-        var typesOnly = AssemblyQuery.Search(types, "LoudGreeter", kind: "type");
+        var typesOnly = AssemblyQuery.FindByContains(types, "LoudGreeter", kind: "type");
         Assert.That(typesOnly, Has.Count.EqualTo(1));
         Assert.That(typesOnly, Has.All.InstanceOf<TypeDefinition>());
 
-        var methodsOnly = AssemblyQuery.Search(types, "LoudGreeter", kind: "method");
+        var methodsOnly = AssemblyQuery.FindByContains(types, "LoudGreeter", kind: "method");
         Assert.That(methodsOnly, Is.Empty);
     }
 
@@ -567,10 +567,10 @@ public class AssemblyQueryTests
     {
         var types = LoadFixtureTypes();
 
-        var inFixtureNamespace = AssemblyQuery.Search(types, "Greeter", @namespace: "Fixture");
+        var inFixtureNamespace = AssemblyQuery.FindByContains(types, "Greeter", @namespace: "Fixture");
         Assert.That(inFixtureNamespace, Is.Not.Empty);
 
-        var inOtherNamespace = AssemblyQuery.Search(types, "Greeter", @namespace: "NoSuchNamespace");
+        var inOtherNamespace = AssemblyQuery.FindByContains(types, "Greeter", @namespace: "NoSuchNamespace");
         Assert.That(inOtherNamespace, Is.Empty);
     }
 
@@ -579,10 +579,10 @@ public class AssemblyQueryTests
     {
         var types = LoadFixtureTypes();
 
-        var inFixtureAssembly = AssemblyQuery.Search(types, "Greeter", assemblyName: "Fixture");
+        var inFixtureAssembly = AssemblyQuery.FindByContains(types, "Greeter", assemblyName: "Fixture");
         Assert.That(inFixtureAssembly, Is.Not.Empty);
 
-        var inOtherAssembly = AssemblyQuery.Search(types, "Greeter", assemblyName: "NoSuchAssembly");
+        var inOtherAssembly = AssemblyQuery.FindByContains(types, "Greeter", assemblyName: "NoSuchAssembly");
         Assert.That(inOtherAssembly, Is.Empty);
     }
 
@@ -591,10 +591,10 @@ public class AssemblyQueryTests
     {
         var types = LoadFixtureTypes();
 
-        var allMatch = AssemblyQuery.Search(types, "Greeter", kind: "type", @namespace: "Fixture", assemblyName: "Fixture");
+        var allMatch = AssemblyQuery.FindByContains(types, "Greeter", kind: "type", @namespace: "Fixture", assemblyName: "Fixture");
         Assert.That(allMatch, Has.Count.EqualTo(4));
 
-        var oneMismatches = AssemblyQuery.Search(types, "Greeter", kind: "type", @namespace: "NoSuchNamespace", assemblyName: "Fixture");
+        var oneMismatches = AssemblyQuery.FindByContains(types, "Greeter", kind: "type", @namespace: "NoSuchNamespace", assemblyName: "Fixture");
         Assert.That(oneMismatches, Is.Empty);
     }
 

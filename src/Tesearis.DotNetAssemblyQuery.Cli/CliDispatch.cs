@@ -37,7 +37,7 @@ internal static class CliDispatch
     private static int PrintFindSymbol(List<TypeDefinition> allTypes, string name, string? kind, string? @namespace, string? assemblyName, bool contains, bool json)
     {
         var matches = contains
-            ? AssemblyQuery.Search(allTypes, name, kind, @namespace, assemblyName)
+            ? AssemblyQuery.FindByContains(allTypes, name, kind, @namespace, assemblyName)
             : AssemblyQuery.FindSymbol(allTypes, name, kind, @namespace, assemblyName);
 
         if (json)

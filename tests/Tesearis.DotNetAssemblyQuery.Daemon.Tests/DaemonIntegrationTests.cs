@@ -13,7 +13,7 @@ namespace Tesearis.DotNetAssemblyQuery.Tests;
 /// static method, so it's driven here on a background <see cref="Task"/> rather than requiring a
 /// separately spawned process, which keeps these tests fast and non-flaky. The dispatch delegate
 /// under test is a minimal stand-in for a real host's (find-symbol only, matching
-/// <see cref="AssemblyQuery.FindSymbol"/>/<see cref="AssemblyQuery.Search"/>'s output shape) since
+/// <see cref="AssemblyQuery.FindSymbol"/>/<see cref="AssemblyQuery.FindByContains"/>'s output shape) since
 /// these tests exercise the daemon's own machinery, not any particular consumer's command set.
 /// </summary>
 [TestFixture]
@@ -23,7 +23,7 @@ public class DaemonIntegrationTests
     {
         Assert.That(request.Command, Is.EqualTo("find-symbol"));
         var matches = request.Contains
-            ? AssemblyQuery.Search(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName)
+            ? AssemblyQuery.FindByContains(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName)
             : AssemblyQuery.FindSymbol(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName);
         if (matches.Count == 0)
         {
