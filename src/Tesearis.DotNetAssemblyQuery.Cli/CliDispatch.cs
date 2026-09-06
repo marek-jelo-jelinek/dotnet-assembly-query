@@ -97,7 +97,7 @@ internal static class CliDispatch
                 Output.QualifiedName(m.Member),
                 Output.AssemblyName(m.Member),
                 m.Location != null ? new SourceLocationJson(m.Location.Path, m.Location.Line, m.Location.IsApproximate) : null,
-                m.Location == null ? $"no source location (assembly '{Output.AssemblyName(m.Member)}' has no usable PDB, or member has no sequence points)" : null)).ToList();
+                m.Location == null ? $"no source location ({NoLocationReason(m.Member)})" : null)).ToList();
             Console.WriteLine(JsonSerializer.Serialize(results, CliOutputJsonContext.Default.ListGoToDefinitionResultJson));
             return 0;
         }
@@ -112,10 +112,22 @@ internal static class CliDispatch
         {
             Console.WriteLine(location != null
                 ? $"{Output.Kind(member)} {Output.QualifiedName(member)} -> {location}"
-                : $"{Output.Kind(member)} {Output.QualifiedName(member)} -> no source location (assembly '{Output.AssemblyName(member)}' has no usable PDB, or member has no sequence points)");
+                : $"{Output.Kind(member)} {Output.QualifiedName(member)} -> no source location ({NoLocationReason(member)})");
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Explains why a member resolved to no source location: distinguishes a module whose PDB
+    /// was never loaded from one with a usable PDB where no sequence point could be found.
+    /// </summary>
+    private static string NoLocationReason(IMemberDefinition member)
+    {
+        var module = (member as TypeDefinition ?? member.DeclaringType)?.Module;
+        return module is not { HasSymbols: true }
+            ? $"assembly '{Output.AssemblyName(member)}' has no usable PDB"
+            : "member has no sequence points";
     }
 
     private static int PrintFindReferences(List<ModuleDefinition> modules, List<TypeDefinition> allTypes, string name, string sourceRoot, string? kind, string? @namespace, string? assemblyName, bool json)

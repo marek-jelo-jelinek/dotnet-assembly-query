@@ -441,8 +441,10 @@ public class CliTests
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListGoToDefinitionResultJson);
         Assert.That(results, Is.Not.Empty);
         // corelib ships without a usable PDB in this environment, so Location is expected to be null
-        // with UnavailableReason set - this pins down that shape rather than asserting a real location.
+        // with UnavailableReason set - this pins down that shape rather than asserting a real location,
+        // and pins down that the "no usable PDB" reason (not "no sequence points") is the one reported.
         Assert.That(results!.All(r => (r.Location == null) != (r.UnavailableReason == null)), Is.True);
+        Assert.That(results!.All(r => r.UnavailableReason == null || r.UnavailableReason.Contains("no usable PDB")), Is.True);
     }
 
     [Test]
