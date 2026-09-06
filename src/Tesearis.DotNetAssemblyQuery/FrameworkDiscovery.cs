@@ -138,7 +138,7 @@ public static partial class FrameworkDiscovery
     private static string? LocateSharedFrameworkRoot()
     {
         var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
-        if (!string.IsNullOrEmpty(dotnetRoot) && Directory.Exists(dotnetRoot)) return dotnetRoot;
+        if (!string.IsNullOrEmpty(dotnetRoot) && Directory.Exists(Path.Combine(dotnetRoot, "shared"))) return dotnetRoot;
 
         // The running daq process's own runtime directory looks like
         // ".../dotnet/shared/Microsoft.NETCore.App/<version>/" - walk up three levels to the
