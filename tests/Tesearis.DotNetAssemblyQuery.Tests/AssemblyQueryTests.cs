@@ -462,6 +462,33 @@ public class AssemblyQueryTests
     }
 
     [Test]
+    public void ResolveSourceLocation_ResolvesAutoPropertyExactlyViaItsAccessor()
+    {
+        var types = LoadFixtureTypes();
+        var property = SymbolIndex.MatchMembers(types, "Name").OfType<PropertyDefinition>().First();
+
+        var location = SourceLocator.ResolveSourceLocation(property, _fixtureDir);
+
+        Assert.That(location, Is.Not.Null);
+        Assert.That(location!.IsApproximate, Is.False);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
+    }
+
+    [Test]
+    public void ResolveSourceLocation_ResolvesAutoPropertyBackingFieldExactlyViaItsProperty()
+    {
+        var types = LoadFixtureTypes();
+        var greeterType = types.Single(t => t.FullName == "Fixture.Greeter");
+        var backingField = greeterType.Fields.Single(f => f.Name == "<Name>k__BackingField");
+
+        var location = SourceLocator.ResolveSourceLocation(backingField, _fixtureDir);
+
+        Assert.That(location, Is.Not.Null);
+        Assert.That(location!.IsApproximate, Is.False);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
+    }
+
+    [Test]
     public void FindSymbol_FiltersByKind()
     {
         var types = LoadFixtureTypes();

@@ -7,8 +7,10 @@ namespace Tesearis.DotNetAssemblyQuery;
 public static class SourceLocator
 {
     /// <summary>
-    /// Resolves <paramref name="member"/>'s source location, falling back to an approximate
-    /// location on the containing type when the member itself has no sequence points.
+    /// Resolves <paramref name="member"/>'s source location. Properties (and auto-property backing
+    /// fields) resolve exactly via their accessor's sequence points, since fields, properties, and
+    /// types otherwise carry no sequence points of their own; anything else falls back to an
+    /// approximate location on the containing type.
     /// </summary>
     public static SourceLocation? ResolveSourceLocation(IMemberDefinition member, string sourceRoot)
     {
@@ -18,8 +20,21 @@ public static class SourceLocator
             return sequencePoint != null ? FormatLocation(sequencePoint, sourceRoot, isApproximate: false) : null;
         }
 
-        // No sequence points on the member itself (e.g. a type, field, or property) - fall back to
-        // the first visible sequence point of any method on the containing type, as an approximation.
+        if (member is PropertyDefinition property)
+        {
+            var propertyLocation = ResolvePropertyLocation(property, sourceRoot);
+            if (propertyLocation != null) return propertyLocation;
+        }
+
+        if (member is FieldDefinition field && TryFindAutoPropertyBackingField(field, out var owningProperty))
+        {
+            var propertyLocation = ResolvePropertyLocation(owningProperty, sourceRoot);
+            if (propertyLocation != null) return propertyLocation;
+        }
+
+        // No sequence points on the member itself (e.g. a type, plain field, or a property with
+        // no resolvable accessor) - fall back to the first visible sequence point of any method on
+        // the containing type, as an approximation.
         var containingType = member as TypeDefinition ?? member.DeclaringType;
         SequencePoint? anySequencePoint = null;
         if (containingType != null)
@@ -34,6 +49,47 @@ public static class SourceLocator
         }
 
         return anySequencePoint != null ? FormatLocation(anySequencePoint, sourceRoot, isApproximate: true) : null;
+    }
+
+    /// <summary>Resolves a property's location via its get/set accessor's own sequence points, if either has one.</summary>
+    private static SourceLocation? ResolvePropertyLocation(PropertyDefinition property, string sourceRoot)
+    {
+        foreach (var accessor in new[] { property.GetMethod, property.SetMethod })
+        {
+            if (accessor is not { HasBody: true }) continue;
+
+            var sequencePoint = FirstVisibleSequencePoint(accessor.DebugInformation?.SequencePoints);
+            if (sequencePoint != null) return FormatLocation(sequencePoint, sourceRoot, isApproximate: false);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="field"/> is a compiler-generated auto-property backing field
+    /// (named <c>&lt;PropertyName&gt;k__BackingField</c>), and if so, the property it backs.
+    /// </summary>
+    private static bool TryFindAutoPropertyBackingField(FieldDefinition field, out PropertyDefinition owningProperty)
+    {
+        owningProperty = null!;
+
+        var name = field.Name;
+        if (name.Length < 2 || name[0] != '<') return false;
+
+        var closingAngle = name.IndexOf('>');
+        if (closingAngle <= 1 || !name.AsSpan(closingAngle).StartsWith(">k__BackingField")) return false;
+
+        var propertyName = name[1..closingAngle];
+        foreach (var property in field.DeclaringType.Properties)
+        {
+            if (property.Name == propertyName)
+            {
+                owningProperty = property;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static SequencePoint? FirstVisibleSequencePoint(IEnumerable<SequencePoint>? sequencePoints)
