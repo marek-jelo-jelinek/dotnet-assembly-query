@@ -211,6 +211,7 @@ internal static class CliOptionsParser
         var option = new Option<int?>("--daemon-idle-timeout")
         {
             Description = "Idle timeout in seconds before an auto-spawned daemon exits.",
+            Hidden = true,
         };
         option.Validators.Add(result =>
         {
