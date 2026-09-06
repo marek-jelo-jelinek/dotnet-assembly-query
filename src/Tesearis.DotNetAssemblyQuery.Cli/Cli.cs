@@ -17,6 +17,7 @@ internal sealed class CliOptions
     public bool IncludeFrameworkResults { get; init; }
     public bool Contains { get; init; }
     public bool Json { get; init; }
+    public bool Verbose { get; init; }
 }
 
 /// <summary>The <c>daq</c> command-line entry point: argument parsing, console output, exit codes.</summary>
@@ -54,7 +55,8 @@ public static class Cli
             dllPaths = AssemblyLoading.DiscoverDllPaths(options.Paths, out var discoveryWarnings);
             foreach (var warning in discoveryWarnings)
             {
-                Console.Error.WriteLine($"Warning: {warning}");
+                if (!options.Verbose && warning.VerboseOnly) continue;
+                Console.Error.WriteLine($"Warning: {warning.Message}");
             }
         }
         catch (Exception ex)

@@ -125,6 +125,29 @@ public class CliTests
     }
 
     [Test]
+    public void Run_WithNativeDllInPathDirectory_HidesSkipWarningByDefaultButShowsItWithVerbose()
+    {
+        var scanDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-native-" + Guid.NewGuid());
+        Directory.CreateDirectory(scanDir);
+        File.Copy(SomeRealAssemblyPath, Path.Combine(scanDir, "Managed.dll"), overwrite: true);
+        File.WriteAllBytes(Path.Combine(scanDir, "Native.dll"), PeFixtures.MinimalPeHeader(managed: false));
+        try
+        {
+            var (quietExitCode, _, quietError) = RunCli("find-symbol", "Object", "--path", scanDir);
+            Assert.That(quietExitCode, Is.EqualTo(0));
+            Assert.That(quietError, Does.Not.Contain("native (non-.NET) DLL(s)"));
+
+            var (verboseExitCode, _, verboseError) = RunCli("find-symbol", "Object", "--path", scanDir, "--verbose");
+            Assert.That(verboseExitCode, Is.EqualTo(0));
+            Assert.That(verboseError, Does.Contain("skipped 1 native (non-.NET) DLL(s) found via --path directory scan"));
+        }
+        finally
+        {
+            Directory.Delete(scanDir, recursive: true);
+        }
+    }
+
+    [Test]
     public void Run_WithUnknownCommand_PrintsErrorAndUsage()
     {
         var (exitCode, output, error) = RunCli("not-a-command", "Foo", "--path", SomeRealAssemblyPath);

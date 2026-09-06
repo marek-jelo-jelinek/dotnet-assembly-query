@@ -12,11 +12,12 @@ public static class AssemblyLoading
     /// Each entry is auto-detected as a directory (non-recursive <c>*.dll</c> scan) or a file/glob
     /// pattern. Unresolved patterns are reported in <paramref name="warnings"/>. A directory scan
     /// silently drops native (non-.NET) DLLs it finds and reports a single collapsed count in
-    /// <paramref name="warnings"/> instead of failing to load each one individually later. DLLs
-    /// named explicitly (not via a directory scan) are never filtered this way, so a direct request
-    /// about a specific file still gets a real per-file load failure if it turns out not to be managed.
+    /// <paramref name="warnings"/> (flagged <see cref="Warning.VerboseOnly"/>) instead of
+    /// failing to load each one individually later. DLLs named explicitly (not via a directory
+    /// scan) are never filtered this way, so a direct request about a specific file still gets a
+    /// real per-file load failure if it turns out not to be managed.
     /// </summary>
-    public static List<string> DiscoverDllPaths(IReadOnlyList<string> paths, out List<string> warnings)
+    public static List<string> DiscoverDllPaths(IReadOnlyList<string> paths, out List<Warning> warnings)
     {
         var resolvedPaths = new List<string>();
         warnings = [];
@@ -44,7 +45,7 @@ public static class AssemblyLoading
                 }
                 catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
                 {
-                    warnings.Add($"--path could not be read: {entry} ({ex.Message})");
+                    warnings.Add(new Warning($"--path could not be read: {entry} ({ex.Message})", VerboseOnly: false));
                 }
 
                 continue;
@@ -53,7 +54,7 @@ public static class AssemblyLoading
             var matches = ResolveGlob(entry);
             if (matches.Count == 0)
             {
-                warnings.Add($"--path matched no files: {entry}");
+                warnings.Add(new Warning($"--path matched no files: {entry}", VerboseOnly: false));
             }
 
             resolvedPaths.AddRange(matches);
@@ -61,7 +62,9 @@ public static class AssemblyLoading
 
         if (nativeSkippedCount > 0)
         {
-            warnings.Add($"skipped {nativeSkippedCount} native (non-.NET) DLL(s) found via --path directory scan");
+            warnings.Add(new Warning(
+                $"skipped {nativeSkippedCount} native (non-.NET) DLL(s) found via --path directory scan",
+                VerboseOnly: true));
         }
 
         // Normalize before dedup so the same DLL reached via two different path spellings (e.g.

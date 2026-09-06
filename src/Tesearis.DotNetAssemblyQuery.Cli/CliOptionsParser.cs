@@ -82,6 +82,11 @@ internal static class CliOptionsParser
         Description = "Case-insensitive substring match instead of an exact name match.",
     };
 
+    private static readonly Option<bool> VerboseOption = new("--verbose")
+    {
+        Description = "Show diagnostic warnings that are hidden by default.",
+    };
+
     /// <summary>
     /// Which optional pieces of a query subcommand's grammar apply - subcommands differ in
     /// whether they take a positional name, a <c>--kind</c> filter, and/or <c>--namespace</c>/
@@ -145,6 +150,7 @@ internal static class CliOptionsParser
         if (features.HasFlag(SubcommandFeatures.Contains)) command.Options.Add(ContainsOption);
 
         command.Options.Add(JsonOption);
+        command.Options.Add(VerboseOption);
 
         command.SetAction(parseResult =>
         {
@@ -164,6 +170,7 @@ internal static class CliOptionsParser
                 IncludeFrameworkResults = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(IncludeFrameworkResultsOption),
                 Contains = features.HasFlag(SubcommandFeatures.Contains) && parseResult.GetValue(ContainsOption),
                 Json = parseResult.GetValue(JsonOption),
+                Verbose = parseResult.GetValue(VerboseOption),
             };
             options.Paths.AddRange(parseResult.GetValue(PathOption) ?? []);
             return runQuery(options);
@@ -192,11 +199,13 @@ internal static class CliOptionsParser
         start.Options.Add(ForegroundOption);
         start.Options.Add(DaemonIdleTimeoutOption);
         start.Options.Add(JsonOption);
+        start.Options.Add(VerboseOption);
         start.SetAction(parseResult => DaemonControl.Start(
             [.. parseResult.GetValue(PathOption) ?? []],
             parseResult.GetValue(ForegroundOption),
             parseResult.GetValue(DaemonIdleTimeoutOption),
             parseResult.GetValue(JsonOption),
+            parseResult.GetValue(VerboseOption),
             daemonDispatch));
 
         daemon.Subcommands.Add(status);

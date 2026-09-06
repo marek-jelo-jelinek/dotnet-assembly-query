@@ -201,7 +201,7 @@ public class AssemblyQueryTests
         var paths = AssemblyLoading.DiscoverDllPaths([scanDir], out var warnings);
 
         Assert.That(paths.Select(Path.GetFileName), Is.EquivalentTo(new[] { "Managed.dll" }));
-        Assert.That(warnings, Is.EqualTo(new[] { "skipped 1 native (non-.NET) DLL(s) found via --path directory scan" }));
+        Assert.That(warnings, Is.EqualTo(new[] { new Warning("skipped 1 native (non-.NET) DLL(s) found via --path directory scan", VerboseOnly: true) }));
     }
 
     [Test]

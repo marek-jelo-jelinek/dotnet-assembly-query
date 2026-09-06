@@ -63,6 +63,24 @@ public class CliOptionsParserTests
     }
 
     [Test]
+    public void ParsesVerboseFlag()
+    {
+        var (exitCode, _) = Parse("find-symbol", "Foo", "--verbose");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.Verbose, Is.True);
+    }
+
+    [Test]
+    public void DefaultsVerboseFlagToFalse()
+    {
+        var (exitCode, _) = Parse("find-symbol", "Foo");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.Verbose, Is.False);
+    }
+
+    [Test]
     public void ParsesRepeatedPathFlags()
     {
         var (exitCode, _) = Parse("find-symbol", "Foo", "--path", "a.dll", "--path", "b.dll", "--path", "d1", "--path", "d2");

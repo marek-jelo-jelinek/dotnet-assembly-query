@@ -123,7 +123,7 @@ public static class DaemonControl
     }
 
     /// <summary>Starts a daemon for the resolved DLL set, either in the foreground or spawned detached.</summary>
-    public static int Start(List<string> paths, bool foreground, int? idleTimeoutSeconds, bool json, DaemonDispatch dispatch)
+    public static int Start(List<string> paths, bool foreground, int? idleTimeoutSeconds, bool json, bool verbose, DaemonDispatch dispatch)
     {
         List<string> dllPaths;
         try
@@ -131,7 +131,8 @@ public static class DaemonControl
             dllPaths = AssemblyLoading.DiscoverDllPaths(paths, out var warnings);
             foreach (var warning in warnings)
             {
-                Console.Error.WriteLine($"Warning: {warning}");
+                if (!verbose && warning.VerboseOnly) continue;
+                Console.Error.WriteLine($"Warning: {warning.Message}");
             }
         }
         catch (Exception ex)
