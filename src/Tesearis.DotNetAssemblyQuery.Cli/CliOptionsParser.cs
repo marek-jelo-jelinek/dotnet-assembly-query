@@ -77,6 +77,11 @@ internal static class CliOptionsParser
         Description = "Restrict matches to this containing assembly name.",
     };
 
+    private static readonly Option<bool> ContainsOption = new("--contains")
+    {
+        Description = "Case-insensitive substring match instead of an exact name match.",
+    };
+
     /// <summary>
     /// Which optional pieces of a query subcommand's grammar apply - subcommands differ in
     /// whether they take a positional name, a <c>--kind</c> filter, and/or <c>--namespace</c>/
@@ -90,6 +95,7 @@ internal static class CliOptionsParser
         Kind = 1 << 1,
         Filters = 1 << 2, // --namespace + --assembly-name
         AutoFramework = 1 << 3,
+        Contains = 1 << 4,
     }
 
     /// <summary>Builds the root command; <paramref name="runQuery"/> is invoked once per matched query subcommand.</summary>
@@ -100,11 +106,12 @@ internal static class CliOptionsParser
             ".NET assemblies and their PDBs - no build, no workspace, no decompiler.");
 
         const SubcommandFeatures nameKindFilters = SubcommandFeatures.Name | SubcommandFeatures.Kind | SubcommandFeatures.Filters;
-        foreach (var name in new[] { "find-symbol", "search", "hover", "go-to-definition", "find-references" })
+        foreach (var name in new[] { "hover", "go-to-definition", "find-references" })
         {
             root.Subcommands.Add(BuildSubcommand(name, runQuery, nameKindFilters));
         }
 
+        root.Subcommands.Add(BuildSubcommand("find-symbol", runQuery, nameKindFilters | SubcommandFeatures.Contains));
         root.Subcommands.Add(BuildSubcommand("list-members", runQuery, nameKindFilters));
         root.Subcommands.Add(BuildSubcommand("implementations", runQuery, SubcommandFeatures.Name | SubcommandFeatures.Filters | SubcommandFeatures.AutoFramework));
         root.Subcommands.Add(BuildSubcommand("list-assemblies", runQuery, SubcommandFeatures.None));
@@ -135,6 +142,8 @@ internal static class CliOptionsParser
             command.Options.Add(IncludeFrameworkResultsOption);
         }
 
+        if (features.HasFlag(SubcommandFeatures.Contains)) command.Options.Add(ContainsOption);
+
         command.Options.Add(JsonOption);
 
         command.SetAction(parseResult =>
@@ -153,6 +162,7 @@ internal static class CliOptionsParser
                     ? [.. parseResult.GetValue(FrameworkPathOption) ?? []]
                     : null,
                 IncludeFrameworkResults = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(IncludeFrameworkResultsOption),
+                Contains = features.HasFlag(SubcommandFeatures.Contains) && parseResult.GetValue(ContainsOption),
                 Json = parseResult.GetValue(JsonOption),
             };
             options.Paths.AddRange(parseResult.GetValue(PathOption) ?? []);
@@ -244,8 +254,7 @@ internal static class CliOptionsParser
 
     private static string Describe(string commandName) => commandName switch
     {
-        "find-symbol" => "Find all symbols matching <name>.",
-        "search" => "Find all symbols whose name contains <name> (case-insensitive substring match).",
+        "find-symbol" => "Find all symbols matching <name>. Add --contains for a case-insensitive substring match instead of an exact match.",
         "hover" => "Show the signature(s) of symbols matching <name>.",
         "go-to-definition" => "Show the source location of symbols matching <name>.",
         "find-references" => "Find references to symbols matching <name>.",

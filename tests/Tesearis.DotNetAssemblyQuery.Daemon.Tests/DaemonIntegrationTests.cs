@@ -13,8 +13,8 @@ namespace Tesearis.DotNetAssemblyQuery.Tests;
 /// static method, so it's driven here on a background <see cref="Task"/> rather than requiring a
 /// separately spawned process, which keeps these tests fast and non-flaky. The dispatch delegate
 /// under test is a minimal stand-in for a real host's (find-symbol only, matching
-/// <see cref="AssemblyQuery.FindSymbol"/>'s output shape) since these tests exercise the daemon's
-/// own machinery, not any particular consumer's command set.
+/// <see cref="AssemblyQuery.FindSymbol"/>/<see cref="AssemblyQuery.Search"/>'s output shape) since
+/// these tests exercise the daemon's own machinery, not any particular consumer's command set.
 /// </summary>
 [TestFixture]
 public class DaemonIntegrationTests
@@ -22,7 +22,9 @@ public class DaemonIntegrationTests
     private static int Dispatch(DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes)
     {
         Assert.That(request.Command, Is.EqualTo("find-symbol"));
-        var matches = AssemblyQuery.FindSymbol(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName);
+        var matches = request.Contains
+            ? AssemblyQuery.Search(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName)
+            : AssemblyQuery.FindSymbol(allTypes, request.Name, request.Kind, request.Namespace, request.AssemblyName);
         if (matches.Count == 0)
         {
             Console.WriteLine($"No symbol named '{request.Name}' found.");
@@ -265,6 +267,37 @@ public class DaemonIntegrationTests
             Assert.That(methodConnected, Is.True);
             Assert.That(methodExitCode, Is.EqualTo(0));
             Assert.That(methodStdout, Does.Contain("No symbol named 'Prefix' found."));
+        }
+        finally
+        {
+            ShutDown(signature);
+            await hostTask;
+            CleanupFixtureDirectory(dllPath);
+        }
+    }
+
+    [Test]
+    public async Task ForwardsContainsFlagToDaemon()
+    {
+        var dllPath = CompileFixture("Fixture.Contains", "public class Greeter { }");
+        var signature = DllSetSignature.Compute([dllPath]);
+
+        var hostTask = Task.Run(() => DaemonHost.RunWorkerLoop(["60", dllPath], Dispatch));
+        try
+        {
+            await WaitUntil(() => DaemonRegistry.TryRead(signature) != null, "daemon to start");
+
+            var sourceRoot = Path.GetDirectoryName(dllPath)!;
+
+            var exactRequest = new DaemonRequest("find-symbol", "reet", sourceRoot, [dllPath]);
+            DaemonClientTestHook.TryRun(exactRequest, out _, out var exactStdout);
+            Assert.That(exactStdout, Does.Contain("No symbol named 'reet' found."));
+
+            var containsRequest = new DaemonRequest("find-symbol", "reet", sourceRoot, [dllPath], Contains: true);
+            var connected = DaemonClientTestHook.TryRun(containsRequest, out var exitCode, out var containsStdout);
+            Assert.That(connected, Is.True);
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(containsStdout, Does.Contain("Greeter"));
         }
         finally
         {

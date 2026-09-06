@@ -27,7 +27,7 @@ daq find-symbol MyClass --path ./bin/Debug/net8.0
 | Where is `X` defined? | `daq go-to-definition X` |
 | What calls / uses `X`? | `daq find-references X` |
 | What is `X`'s signature? Is it overloaded? | `daq hover X` |
-| I only know part of the name | `daq search <term>` |
+| I only know part of the name | `daq find-symbol <term> --contains` |
 | What members does type `T` have? | `daq list-members T` |
 | What implements/derives from `I` (transitively)? | `daq implementations I` |
 | What assemblies are loaded? | `daq list-assemblies` |

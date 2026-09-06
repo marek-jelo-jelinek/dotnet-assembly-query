@@ -365,4 +365,31 @@ public class CliOptionsParserTests
         Assert.That(exitCode, Is.EqualTo(2));
         Assert.That(errors, Does.Contain("Unrecognized command or argument '--include-framework-results'."));
     }
+
+    [Test]
+    public void WithoutContains_DefaultsFalse()
+    {
+        var (exitCode, _) = Parse("find-symbol", "Foo", "--path", "a.dll");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.Contains, Is.False);
+    }
+
+    [Test]
+    public void ParsesContains_WhenPassed()
+    {
+        var (exitCode, _) = Parse("find-symbol", "Foo", "--path", "a.dll", "--contains");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.Contains, Is.True);
+    }
+
+    [Test]
+    public void ContainsIsRejectedOnSubcommandsWithoutIt()
+    {
+        var (exitCode, errors) = Parse("hover", "Foo", "--path", "a.dll", "--contains");
+
+        Assert.That(exitCode, Is.EqualTo(2));
+        Assert.That(errors, Does.Contain("Unrecognized command or argument '--contains'."));
+    }
 }

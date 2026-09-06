@@ -271,50 +271,50 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Search_WithSubstring_FindsMatch()
+    public void Run_FindSymbol_WithContains_FindsSubstringMatch()
     {
-        var (exitCode, output, _) = RunCli("search", "bjec", "--path", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "bjec", "--contains", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
     }
 
     [Test]
-    public void Run_Search_IsCaseInsensitive()
+    public void Run_FindSymbol_WithContains_IsCaseInsensitive()
     {
-        var (exitCode, output, _) = RunCli("search", "OBJECT", "--path", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "OBJECT", "--contains", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
     }
 
     [Test]
-    public void Run_Search_WithNoMatch_PrintsNotFound()
+    public void Run_FindSymbol_WithContainsAndNoMatch_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("search", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "ThisSymbolDoesNotExistAnywhere", "--contains", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol containing 'ThisSymbolDoesNotExistAnywhere' found."));
     }
 
     [Test]
-    public void Run_Search_WithJson_PrintsJsonArray()
+    public void Run_FindSymbol_WithContainsAndJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("search", "bjec", "--path", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("find-symbol", "bjec", "--contains", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
-        var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListSearchResultJson);
+        var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListFindSymbolResultJson);
         Assert.That(results, Is.Not.Empty);
         Assert.That(results!.Any(r => r.Name == "System.Object"), Is.True);
     }
 
     [Test]
-    public void Run_Search_WithJsonAndNoMatch_PrintsEmptyArray()
+    public void Run_FindSymbol_WithContainsAndJsonAndNoMatch_PrintsEmptyArray()
     {
-        var (exitCode, output, _) = RunCli("search", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("find-symbol", "ThisSymbolDoesNotExistAnywhere", "--contains", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
-        var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListSearchResultJson);
+        var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListFindSymbolResultJson);
         Assert.That(results, Is.Empty);
     }
 

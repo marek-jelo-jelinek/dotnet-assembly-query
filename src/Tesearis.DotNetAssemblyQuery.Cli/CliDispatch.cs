@@ -17,8 +17,7 @@ internal static class CliDispatch
         {
             return options.Command switch
             {
-                "find-symbol" => PrintFindSymbol(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Json),
-                "search" => PrintSearch(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Json),
+                "find-symbol" => PrintFindSymbol(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Contains, options.Json),
                 "hover" => PrintHover(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "go-to-definition" => PrintGoToDefinition(allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "find-references" => PrintFindReferences(modules, allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
@@ -35,9 +34,11 @@ internal static class CliDispatch
         }
     }
 
-    private static int PrintFindSymbol(List<TypeDefinition> allTypes, string name, string? kind, string? @namespace, string? assemblyName, bool json)
+    private static int PrintFindSymbol(List<TypeDefinition> allTypes, string name, string? kind, string? @namespace, string? assemblyName, bool contains, bool json)
     {
-        var matches = AssemblyQuery.FindSymbol(allTypes, name, kind, @namespace, assemblyName);
+        var matches = contains
+            ? AssemblyQuery.Search(allTypes, name, kind, @namespace, assemblyName)
+            : AssemblyQuery.FindSymbol(allTypes, name, kind, @namespace, assemblyName);
 
         if (json)
         {
@@ -48,32 +49,7 @@ internal static class CliDispatch
 
         if (matches.Count == 0)
         {
-            Console.WriteLine($"No symbol named '{name}' found.");
-            return 0;
-        }
-
-        foreach (var member in matches)
-        {
-            Console.WriteLine($"{Output.Kind(member)} {member.FullName} ({Output.AssemblyName(member)})");
-        }
-
-        return 0;
-    }
-
-    private static int PrintSearch(List<TypeDefinition> allTypes, string term, string? kind, string? @namespace, string? assemblyName, bool json)
-    {
-        var matches = AssemblyQuery.Search(allTypes, term, kind, @namespace, assemblyName);
-
-        if (json)
-        {
-            var results = matches.Select(m => new SearchResultJson(Output.Kind(m), m.FullName, Output.AssemblyName(m))).ToList();
-            Console.WriteLine(JsonSerializer.Serialize(results, CliOutputJsonContext.Default.ListSearchResultJson));
-            return 0;
-        }
-
-        if (matches.Count == 0)
-        {
-            Console.WriteLine($"No symbol containing '{term}' found.");
+            Console.WriteLine(contains ? $"No symbol containing '{name}' found." : $"No symbol named '{name}' found.");
             return 0;
         }
 

@@ -7,8 +7,6 @@ internal sealed record SourceLocationJson(string Path, int Line, bool IsApproxim
 
 internal sealed record FindSymbolResultJson(string Kind, string Name, string Assembly);
 
-internal sealed record SearchResultJson(string Kind, string Name, string Assembly);
-
 internal sealed record HoverResultJson(string Signature);
 
 /// <summary><see cref="UnavailableReason"/> is set iff <see cref="Location"/> is null.</summary>
@@ -29,7 +27,6 @@ internal sealed record ListAssembliesResultJson(string Name, string Version, str
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(List<FindSymbolResultJson>))]
-[JsonSerializable(typeof(List<SearchResultJson>))]
 [JsonSerializable(typeof(List<HoverResultJson>))]
 [JsonSerializable(typeof(List<GoToDefinitionResultJson>))]
 [JsonSerializable(typeof(List<FindReferenceResultJson>))]
