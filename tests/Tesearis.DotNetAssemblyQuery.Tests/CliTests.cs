@@ -493,11 +493,13 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithBareFrameworkDir_ResolvesFrameworkType()
+    public void Run_Implementations_WithBareFrameworkDir_ExcludesFrameworkTypeByDefault()
     {
         // Unlike the tests above, this fixture's own directory does NOT contain
         // System.Private.CoreLib.dll - only a bare --framework-dir's auto-discovery of the local
-        // shared framework can make IDisposable resolvable here.
+        // shared framework can make IDisposable resolvable here. This fixture has no primary
+        // implementer of IDisposable at all, so by default (framework-origin implementers
+        // excluded), nothing should be reported even though MemoryStream et al. do implement it.
         var dllPath = CompileFixtureWithoutCoreLib();
         if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
         {
@@ -509,6 +511,80 @@ public class CliTests
             var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir");
 
             Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(output, Does.Not.Contain("MemoryStream"));
+            Assert.That(output, Does.Contain("No implementations of 'IDisposable' found."));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(dllPath)!, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Run_Implementations_WithBareFrameworkDirAndIncludeFrameworkResults_ResolvesFrameworkType()
+    {
+        // Same fixture/setup as above, but --include-framework-results opts back into reporting
+        // framework-origin implementers.
+        var dllPath = CompileFixtureWithoutCoreLib();
+        if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
+        {
+            Assert.Ignore("No local .NET shared framework install found on this machine.");
+        }
+
+        try
+        {
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir", "--include-framework-results");
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(output, Does.Contain("MemoryStream"));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(dllPath)!, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Run_Implementations_WithFrameworkDir_ExcludesUnrelatedFrameworkImplementer_ByDefault()
+    {
+        // Reproduces the original complaint: a primary-dir type implementing IDisposable should be
+        // reported, but the (huge) set of framework/BCL types that also implement IDisposable
+        // (e.g. MemoryStream) should not flood the default output.
+        var dllPath = CompileFixtureWithDisposableImplementer();
+        if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
+        {
+            Assert.Ignore("No local .NET shared framework install found on this machine.");
+        }
+
+        try
+        {
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir");
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(output, Does.Contain("PrimaryDisposable"));
+            Assert.That(output, Does.Not.Contain("MemoryStream"));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(dllPath)!, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Run_Implementations_WithFrameworkDirAndIncludeFrameworkResults_IncludesBoth()
+    {
+        var dllPath = CompileFixtureWithDisposableImplementer();
+        if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
+        {
+            Assert.Ignore("No local .NET shared framework install found on this machine.");
+        }
+
+        try
+        {
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir", "--include-framework-results");
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(output, Does.Contain("PrimaryDisposable"));
             Assert.That(output, Does.Contain("MemoryStream"));
         }
         finally
@@ -616,7 +692,43 @@ public class CliTests
 
         return dllPath;
     }
-    
+
+    /// <summary>
+    /// Same shape as <see cref="CompileFixtureWithoutCoreLib"/> (System.Private.CoreLib.dll isn't
+    /// copied alongside), but declares a type that implements <c>IDisposable</c> - a primary-dir
+    /// implementer to contrast against framework-origin ones like <c>MemoryStream</c>.
+    /// </summary>
+    private static string CompileFixtureWithDisposableImplementer()
+    {
+        const string source = "namespace Fixture { public class PrimaryDisposable : System.IDisposable { public void Dispose() { } } }";
+
+        var dir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+        var dllPath = Path.Combine(dir, "Fixture.DisposableImplementer.dll");
+
+        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+        var references = new List<MetadataReference>();
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
+            {
+                references.Add(MetadataReference.CreateFromFile(assembly.Location));
+            }
+        }
+
+        var compilation = CSharpCompilation.Create(
+            "Fixture.DisposableImplementer",
+            [syntaxTree],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var dllStream = File.Create(dllPath);
+        var emitResult = compilation.Emit(dllStream, options: new EmitOptions());
+        Assert.That(emitResult.Success, Is.True, string.Join("\n", emitResult.Diagnostics));
+
+        return dllPath;
+    }
+
     private static (string InterfaceDir, string ImplementerDllPath) CompileFixtureAcrossTwoDirectories()
     {
         var interfaceDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-iface-" + Guid.NewGuid());

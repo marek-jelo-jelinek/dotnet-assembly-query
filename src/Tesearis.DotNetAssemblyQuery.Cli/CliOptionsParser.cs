@@ -60,6 +60,14 @@ internal static class CliOptionsParser
         AllowMultipleArgumentsPerToken = false,
     };
 
+    private static readonly Option<bool> IncludeFrameworkResultsOption = new("--include-framework-results")
+    {
+        Description = "Include implementers declared only in --framework-dir-loaded assemblies in the " +
+            "reported results. By default, --framework-dir assemblies are used only to resolve the " +
+            "target type and walk base-type/interface chains; only types from --assembly/--dir are " +
+            "reported as implementers.",
+    };
+
     private static readonly Option<int?> DaemonIdleTimeoutOption = BuildDaemonIdleTimeoutOption();
 
     private static readonly Option<string?> KindOption = BuildKindOption();
@@ -130,6 +138,7 @@ internal static class CliOptionsParser
         if (features.HasFlag(SubcommandFeatures.AutoFramework))
         {
             command.Options.Add(FrameworkDirOption);
+            command.Options.Add(IncludeFrameworkResultsOption);
         }
 
         command.Options.Add(JsonOption);
@@ -149,6 +158,7 @@ internal static class CliOptionsParser
                 FrameworkPaths = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetResult(FrameworkDirOption) != null
                     ? [.. parseResult.GetValue(FrameworkDirOption) ?? []]
                     : null,
+                IncludeFrameworkResults = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(IncludeFrameworkResultsOption),
                 Json = parseResult.GetValue(JsonOption),
             };
             options.AssemblyPaths.AddRange(parseResult.GetValue(AssemblyOption) ?? []);

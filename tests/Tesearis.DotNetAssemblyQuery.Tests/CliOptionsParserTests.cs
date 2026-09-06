@@ -340,4 +340,31 @@ public class CliOptionsParserTests
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.FrameworkPaths, Is.EqualTo(new[] { "dir-a", "file-b.dll", "dir-c" }));
     }
+
+    [Test]
+    public void WithoutIncludeFrameworkResults_DefaultsFalse()
+    {
+        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.IncludeFrameworkResults, Is.False);
+    }
+
+    [Test]
+    public void ParsesIncludeFrameworkResults_WhenPassed()
+    {
+        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll", "--framework-dir", "--include-framework-results");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.IncludeFrameworkResults, Is.True);
+    }
+
+    [Test]
+    public void IncludeFrameworkResultsIsRejectedOnSubcommandsWithoutAutoFramework()
+    {
+        var (exitCode, errors) = Parse("find-symbol", "Foo", "--assembly", "a.dll", "--include-framework-results");
+
+        Assert.That(exitCode, Is.EqualTo(2));
+        Assert.That(errors, Does.Contain("Unrecognized command or argument '--include-framework-results'."));
+    }
 }

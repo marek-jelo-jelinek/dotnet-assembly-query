@@ -23,7 +23,7 @@ internal static class CliDispatch
                 "go-to-definition" => PrintGoToDefinition(allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "find-references" => PrintFindReferences(modules, allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "list-members" => PrintListMembers(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Json),
-                "implementations" => PrintImplementations(allTypes, options.Name, options.Namespace, options.AssemblyName, options.Json, autoFrameworkTypes),
+                "implementations" => PrintImplementations(allTypes, options.Name, options.Namespace, options.AssemblyName, options.Json, autoFrameworkTypes, options.IncludeFrameworkResults),
                 "list-assemblies" => PrintListAssemblies(modules, options.Json),
                 _ => UnknownCommand(options.Command),
             };
@@ -216,8 +216,10 @@ internal static class CliDispatch
         return 0;
     }
 
-    private static int PrintImplementations(List<TypeDefinition> allTypes, string name, string? @namespace, string? assemblyName, bool json, Func<List<TypeDefinition>>? autoFrameworkTypes)
+    private static int PrintImplementations(List<TypeDefinition> allTypes, string name, string? @namespace, string? assemblyName, bool json, Func<List<TypeDefinition>>? autoFrameworkTypes, bool includeFrameworkResults)
     {
+        var primaryTypes = includeFrameworkResults ? null : new HashSet<TypeDefinition>(allTypes);
+
         // Distinguish "the type itself isn't indexed" from "it's indexed but has no
         // implementers" - both would otherwise collapse into an empty match list and
         // print a misleading "no implementations" for e.g. BCL types like IDisposable
@@ -237,6 +239,10 @@ internal static class CliDispatch
         }
 
         var matches = AssemblyQuery.Implementations(allTypes, name, @namespace, assemblyName);
+        if (primaryTypes != null)
+        {
+            matches = [.. matches.Where(primaryTypes.Contains)];
+        }
 
         if (json)
         {

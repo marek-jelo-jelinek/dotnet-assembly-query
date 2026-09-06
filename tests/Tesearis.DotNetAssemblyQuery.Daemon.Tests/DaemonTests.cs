@@ -58,6 +58,20 @@ public class PipeFramingTests
     }
 
     [Test]
+    public void RequestRoundTripsIncludeFrameworkResults()
+    {
+        using var server = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);
+        using var client = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+
+        var request = new DaemonRequest("implementations", "IDisposable", "/src", ["/a/One.dll"], FrameworkPaths: [], IncludeFrameworkResults: true);
+        PipeFraming.WriteJson(server, request, DaemonJsonContext.Default.DaemonRequest);
+
+        var received = PipeFraming.ReadJson(client, DaemonJsonContext.Default.DaemonRequest);
+
+        Assert.That(received.IncludeFrameworkResults, Is.True);
+    }
+
+    [Test]
     public void ResponseRoundTripsWithMultiKilobytePayload()
     {
         using var server = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);

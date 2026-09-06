@@ -15,6 +15,7 @@ internal sealed class CliOptions
     public string? Namespace { get; init; }
     public string? AssemblyName { get; init; }
     public List<string>? FrameworkPaths { get; init; }
+    public bool IncludeFrameworkResults { get; init; }
     public bool Json { get; init; }
 }
 
@@ -79,7 +80,8 @@ public static class Cli
                 Namespace: options.Namespace,
                 AssemblyName: options.AssemblyName,
                 Json: options.Json,
-                FrameworkPaths: options.FrameworkPaths);
+                FrameworkPaths: options.FrameworkPaths,
+                IncludeFrameworkResults: options.IncludeFrameworkResults);
             if (DaemonClient.TryRun(request, out var daemonExitCode))
             {
                 return daemonExitCode;
@@ -190,6 +192,7 @@ public static class Cli
             Namespace = request.Namespace,
             AssemblyName = request.AssemblyName,
             Json = request.Json,
+            IncludeFrameworkResults = request.IncludeFrameworkResults,
         };
         return CliDispatch.Dispatch(options, modules, allTypes, autoFrameworkTypes);
     }

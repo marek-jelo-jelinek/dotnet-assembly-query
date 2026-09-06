@@ -17,7 +17,7 @@ public static class DaemonProtocolVersion
 }
 
 /// <summary>A query request sent from a <see cref="DaemonClient"/> to a warm <see cref="DaemonHost"/>.</summary>
-public sealed record DaemonRequest(string Command, string Name, string SourceRoot, List<string> DllPaths, string? Kind = null, string? Namespace = null, string? AssemblyName = null, bool Json = false, List<string>? FrameworkPaths = null);
+public sealed record DaemonRequest(string Command, string Name, string SourceRoot, List<string> DllPaths, string? Kind = null, string? Namespace = null, string? AssemblyName = null, bool Json = false, List<string>? FrameworkPaths = null, bool IncludeFrameworkResults = false);
 
 /// <summary>The full buffered result of dispatching a <see cref="DaemonRequest"/>.</summary>
 public sealed record DaemonResponse(int ExitCode, string Stdout, string Stderr);
