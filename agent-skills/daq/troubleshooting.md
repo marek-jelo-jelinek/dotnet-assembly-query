@@ -43,6 +43,12 @@
 - The background daemon's staleness check is timestamp/size-based, not content-based (see `daemon.md`) - a touch with no real content change can
   trigger one extra reload.
 
+## `--verbose`
+
+Pass `--verbose` to any query command (or `daemon start`) to show diagnostic warnings that are
+hidden by default. Without it, these warnings are suppressed because they're expected and not 
+actionable in the common case.
+
 ## Diagnosing daemon spawn issues
 
 `daq` swallows a failed daemon-spawn attempt silently by default (a query's result never depends on whether the daemon spawn succeeded). Set

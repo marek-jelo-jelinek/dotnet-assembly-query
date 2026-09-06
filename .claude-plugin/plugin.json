@@ -1,7 +1,7 @@
 {
   "name": "daq",
   "description": "Query compiled .NET assemblies for types, members, references, and implementations",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Marek Jelinek",
     "email": "marek.jelinek@live.com"
