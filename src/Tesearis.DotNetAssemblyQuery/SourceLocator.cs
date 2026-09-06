@@ -10,7 +10,8 @@ public static class SourceLocator
     /// Resolves <paramref name="member"/>'s source location. Properties (and auto-property backing
     /// fields) resolve exactly via their accessor's sequence points, since fields, properties, and
     /// types otherwise carry no sequence points of their own; anything else falls back to an
-    /// approximate location on the containing type.
+    /// approximate location on the containing type (see <see cref="SourceLocation.IsApproximate"/>
+    /// and <see cref="SourceLocation.IsFileApproximate"/>).
     /// </summary>
     public static SourceLocation? ResolveSourceLocation(IMemberDefinition member, string sourceRoot)
     {
@@ -37,19 +38,21 @@ public static class SourceLocator
         // Its line number would be arbitrary (just whichever method happens to be first), so it's
         // deliberately left out - only the file is reported.
         var containingType = member as TypeDefinition ?? member.DeclaringType;
-        var anySequencePoint = FindApproximateSequencePoint(containingType);
 
-        return anySequencePoint != null ? FormatApproximateLocation(anySequencePoint, sourceRoot) : null;
+        var ownSequencePoint = FindSequencePointOnTypeOrAncestors(containingType);
+        if (ownSequencePoint != null) return FormatApproximateLocation(ownSequencePoint, sourceRoot, isFileApproximate: false);
+
+        var siblingSequencePoint = FindSequencePointOnNamespaceSibling(containingType);
+        return siblingSequencePoint != null ? FormatApproximateLocation(siblingSequencePoint, sourceRoot, isFileApproximate: true) : null;
     }
 
     /// <summary>
-    /// Finds a sequence point to approximate <paramref name="containingType"/>'s source file.
-    /// Tries the type's own methods, then walks up its declaring-type chain (for a type nested in
-    /// one with methods, e.g. an enum nested in the class that uses it), then falls back to any
-    /// other type in the same namespace and module - types with no methods of their own (enums,
-    /// chiefly: they compile down to only fields) otherwise never resolve to any location at all.
+    /// Finds a sequence point in <paramref name="containingType"/>'s own methods, or (for a type
+    /// nested in one with methods, e.g. an enum nested in the class that uses it) its declaring
+    /// types. The file this resolves to is trustworthy - it's the member's own file, even though
+    /// the line isn't.
     /// </summary>
-    private static SequencePoint? FindApproximateSequencePoint(TypeDefinition? containingType)
+    private static SequencePoint? FindSequencePointOnTypeOrAncestors(TypeDefinition? containingType)
     {
         for (var type = containingType; type != null; type = type.DeclaringType)
         {
@@ -57,6 +60,19 @@ public static class SourceLocator
             if (sequencePoint != null) return sequencePoint;
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// Falls back to any other type in the same namespace and module - types with no methods of
+    /// their own anywhere in their declaring-type chain (enums, chiefly: they compile down to only
+    /// fields) otherwise never resolve to any location at all. Unlike
+    /// <see cref="FindSequencePointOnTypeOrAncestors"/>, the result here has no real relationship
+    /// to the member beyond sharing a namespace, so even its file is only a guess - a namespace
+    /// commonly spans multiple source files.
+    /// </summary>
+    private static SequencePoint? FindSequencePointOnNamespaceSibling(TypeDefinition? containingType)
+    {
         if (containingType == null) return null;
 
         foreach (var sibling in containingType.Module.GetTypes())
@@ -162,20 +178,21 @@ public static class SourceLocator
 
     private static SourceLocation FormatLocation(SequencePoint sequencePoint, string sourceRoot, bool isApproximate)
     {
-        return FormatLocationCore(sequencePoint, sourceRoot, isApproximate, sequencePoint.StartLine);
+        return FormatLocationCore(sequencePoint, sourceRoot, isApproximate, isFileApproximate: false, sequencePoint.StartLine);
     }
 
     /// <summary>
     /// Formats an approximate location without a line number: the sequence point's own line
-    /// belongs to an unrelated method (the containing type's), so reporting it would be misleading -
-    /// only the file it came from is trustworthy.
+    /// belongs to an unrelated method (the containing type's), so reporting it would be misleading.
+    /// <paramref name="isFileApproximate"/> further marks the namespace-sibling case, where even
+    /// the file is only a guess.
     /// </summary>
-    private static SourceLocation FormatApproximateLocation(SequencePoint sequencePoint, string sourceRoot)
+    private static SourceLocation FormatApproximateLocation(SequencePoint sequencePoint, string sourceRoot, bool isFileApproximate)
     {
-        return FormatLocationCore(sequencePoint, sourceRoot, isApproximate: true, line: null);
+        return FormatLocationCore(sequencePoint, sourceRoot, isApproximate: true, isFileApproximate, line: null);
     }
 
-    private static SourceLocation FormatLocationCore(SequencePoint sequencePoint, string sourceRoot, bool isApproximate, int? line)
+    private static SourceLocation FormatLocationCore(SequencePoint sequencePoint, string sourceRoot, bool isApproximate, bool isFileApproximate, int? line)
     {
         var rawPath = sequencePoint.Document.Url;
 
@@ -191,6 +208,6 @@ public static class SourceLocator
             path = Path.GetRelativePath(normalizedRootPath, normalizedPath);
         }
 
-        return new SourceLocation(path, line, isApproximate);
+        return new SourceLocation(path, line, isApproximate, isFileApproximate);
     }
 }

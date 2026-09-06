@@ -132,7 +132,11 @@ public static class Cli
                 }
 
                 var paths = FrameworkDiscovery.ResolveAssemblyPaths(entries);
-                frameworkModules.AddRange(AssemblyLoading.LoadModules(paths, resolver, out _));
+                frameworkModules.AddRange(AssemblyLoading.LoadModules(paths, resolver, out var frameworkLoadWarnings));
+                foreach (var warning in frameworkLoadWarnings)
+                {
+                    Console.Error.WriteLine($"Warning: {warning}");
+                }
 
                 var types = new List<TypeDefinition>();
                 foreach (var module in frameworkModules)

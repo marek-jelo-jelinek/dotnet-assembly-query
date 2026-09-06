@@ -91,8 +91,22 @@ public class AssemblyQueryTests
         }
         """;
 
+    // A second file in the same namespace with no other type that has methods - so the
+    // namespace-sibling fallback for Mood must reach into Fixture.cs, a genuinely different file.
+    private const string SecondFileSource = """
+        namespace Fixture
+        {
+            public enum Mood
+            {
+                Calm,
+                Excited,
+            }
+        }
+        """;
+
     private static string _fixtureDir = null!;
     private static string _dllPath = null!;
+    private static string _secondSourcePath = null!;
 
     [OneTimeSetUp]
     public void CompileFixture()
@@ -103,8 +117,11 @@ public class AssemblyQueryTests
         var pdbPath = Path.Combine(_fixtureDir, "Fixture.pdb");
         var sourcePath = Path.Combine(_fixtureDir, "Fixture.cs");
         File.WriteAllText(sourcePath, FixtureSource);
+        _secondSourcePath = Path.Combine(_fixtureDir, "Second.cs");
+        File.WriteAllText(_secondSourcePath, SecondFileSource);
 
         var syntaxTree = CSharpSyntaxTree.ParseText(FixtureSource, path: sourcePath, encoding: System.Text.Encoding.UTF8);
+        var secondSyntaxTree = CSharpSyntaxTree.ParseText(SecondFileSource, path: _secondSourcePath, encoding: System.Text.Encoding.UTF8);
         var references = new List<MetadataReference>();
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
@@ -116,7 +133,7 @@ public class AssemblyQueryTests
 
         var compilation = CSharpCompilation.Create(
             "Fixture",
-            [syntaxTree],
+            [syntaxTree, secondSyntaxTree],
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
@@ -464,9 +481,11 @@ public class AssemblyQueryTests
         var location = SourceLocator.ResolveSourceLocation(field, _fixtureDir);
 
         // Approximate locations omit the line - it would belong to an unrelated method - and report
-        // just the file.
+        // just the file. Prefix's declaring type (Greeter) has its own methods, so the file is
+        // trustworthy: not a namespace-sibling guess.
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.IsFileApproximate, Is.False);
         Assert.That(location.Line, Is.Null);
         Assert.That(location.Path, Does.Contain("Fixture.cs"));
         Assert.That(location.ToString(), Is.EqualTo(location.Path));
@@ -482,6 +501,7 @@ public class AssemblyQueryTests
 
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.IsFileApproximate, Is.False);
         Assert.That(location.Line, Is.Null);
         Assert.That(location.Path, Does.Contain("Fixture.cs"));
     }
@@ -495,11 +515,13 @@ public class AssemblyQueryTests
         var location = SourceLocator.ResolveSourceLocation(volumeType, _fixtureDir);
 
         // Volume has no methods of its own (enums never do), so this only resolves via the
-        // namespace-sibling fallback.
+        // namespace-sibling fallback - even the file is a guess here.
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.IsFileApproximate, Is.True);
         Assert.That(location.Line, Is.Null);
         Assert.That(location.Path, Does.Contain("Fixture.cs"));
+        Assert.That(location.ToString(), Is.EqualTo($"{location.Path} (approximate file)"));
     }
 
     [Test]
@@ -512,8 +534,27 @@ public class AssemblyQueryTests
 
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.IsFileApproximate, Is.True);
         Assert.That(location.Line, Is.Null);
         Assert.That(location.Path, Does.Contain("Fixture.cs"));
+    }
+
+    [Test]
+    public void ResolveSourceLocation_NamespaceSiblingFallbackCanResolveToADifferentFileThanTheMember()
+    {
+        var types = LoadFixtureTypes();
+        var moodType = types.Single(t => t.FullName == "Fixture.Mood");
+
+        var location = SourceLocator.ResolveSourceLocation(moodType, _fixtureDir);
+
+        // Mood is declared in Second.cs and has no methods anywhere in its declaring-type chain,
+        // so the namespace-sibling fallback reaches into Fixture.cs instead - a real mismatch,
+        // not just a hypothetical one. IsFileApproximate is the only signal that the reported
+        // file may not be where Mood actually lives.
+        Assert.That(location, Is.Not.Null);
+        Assert.That(location!.IsFileApproximate, Is.True);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
+        Assert.That(location.Path, Does.Not.Contain("Second.cs"));
     }
 
     [Test]
@@ -526,6 +567,7 @@ public class AssemblyQueryTests
 
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.False);
+        Assert.That(location.IsFileApproximate, Is.False);
         Assert.That(location.Path, Does.Contain("Fixture.cs"));
     }
 
@@ -540,6 +582,7 @@ public class AssemblyQueryTests
 
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.False);
+        Assert.That(location.IsFileApproximate, Is.False);
         Assert.That(location.Path, Does.Contain("Fixture.cs"));
     }
 

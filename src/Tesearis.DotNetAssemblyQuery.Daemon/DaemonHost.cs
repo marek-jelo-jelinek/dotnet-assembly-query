@@ -183,18 +183,25 @@ public static class DaemonHost
         FrameworkCache frameworkCache)
     {
         List<string> entries;
+        bool isBareDiscovery;
         if (frameworkPathsOverride is { Count: > 0 })
         {
             entries = frameworkPathsOverride;
+            isBareDiscovery = false;
         }
         else
         {
             // frameworkPathsOverride is either null (shouldn't reach here - the caller only
             // invokes this when FrameworkPaths != null) or empty (bare --framework-path:
             // auto-discover the local shared framework).
+            isBareDiscovery = true;
             if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var directory) || directory == null)
             {
-                return frameworkCache.Types ?? [];
+                // Only reuse a previous bare-discovery result here - if the cache instead holds
+                // an unrelated explicit --framework-path list from an earlier request, returning
+                // it for this failed auto-discovery would silently report implementers from the
+                // wrong framework instead of the documented "couldn't locate/resolve it" hint.
+                return frameworkCache.IsBareDiscovery ? frameworkCache.Types ?? [] : [];
             }
 
             entries = [directory];
@@ -215,8 +222,16 @@ public static class DaemonHost
 
             var paths = FrameworkDiscovery.ResolveAssemblyPaths(entries);
             var loadedModules = currentResolver != null
-                ? AssemblyLoading.LoadModules(paths, currentResolver, out _)
-                : AssemblyLoading.LoadModules(paths, out _);
+                ? AssemblyLoading.LoadModules(paths, currentResolver, out var frameworkLoadWarnings)
+                : AssemblyLoading.LoadModules(paths, out frameworkLoadWarnings);
+            // Console.Error is redirected to the per-request response buffer by
+            // RunDispatchCapturingOutput for the whole duration of this call, so this reaches the
+            // client that triggered the (re)load - not just whichever client happens to be
+            // connected when the cache is later reused without reloading.
+            foreach (var warning in frameworkLoadWarnings)
+            {
+                Console.Error.WriteLine($"Warning: {warning}");
+            }
 
             var types = new List<TypeDefinition>();
             foreach (var module in loadedModules)
@@ -228,6 +243,7 @@ public static class DaemonHost
             frameworkCache.Modules = loadedModules;
             frameworkCache.Types = types;
             frameworkCache.AppliedTo = currentResolver;
+            frameworkCache.IsBareDiscovery = isBareDiscovery;
         }
         else if (currentResolver != null && !ReferenceEquals(currentResolver, frameworkCache.AppliedTo))
         {
@@ -345,6 +361,7 @@ public static class DaemonHost
         public List<ModuleDefinition>? Modules;
         public List<TypeDefinition>? Types;
         public DefaultAssemblyResolver? AppliedTo;
+        public bool IsBareDiscovery;
     }
 }
 

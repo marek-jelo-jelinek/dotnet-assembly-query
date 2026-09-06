@@ -96,7 +96,7 @@ internal static class CliDispatch
                 Output.Kind(m.Member),
                 Output.QualifiedName(m.Member),
                 Output.AssemblyName(m.Member),
-                m.Location != null ? new SourceLocationJson(m.Location.Path, m.Location.Line, m.Location.IsApproximate) : null,
+                m.Location != null ? new SourceLocationJson(m.Location.Path, m.Location.Line, m.Location.IsApproximate, m.Location.IsFileApproximate) : null,
                 m.Location == null ? $"no source location ({NoLocationReason(m.Member)})" : null)).ToList();
             Console.WriteLine(JsonSerializer.Serialize(results, CliOutputJsonContext.Default.ListGoToDefinitionResultJson));
             return 0;
@@ -153,7 +153,7 @@ internal static class CliDispatch
                 site.Site.FullName,
                 site.Kind,
                 site.IsTypePositionUsage,
-                site.Location != null ? new SourceLocationJson(site.Location.Path, site.Location.Line, site.Location.IsApproximate) : null)).ToList();
+                site.Location != null ? new SourceLocationJson(site.Location.Path, site.Location.Line, site.Location.IsApproximate, site.Location.IsFileApproximate) : null)).ToList();
             Console.WriteLine(JsonSerializer.Serialize(results, CliOutputJsonContext.Default.ListFindReferenceResultJson));
             return 0;
         }
@@ -232,18 +232,22 @@ internal static class CliDispatch
             matches = [.. matches.Where(primaryTypes.Contains)];
         }
 
+        var hint = !targetExists
+            ? autoFrameworkAttempted
+                ? $"Type '{name}' was not found in the indexed assemblies, and --framework-path couldn't locate/resolve it either."
+                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --path), or retry with --framework-path (bare, to auto-discover the local .NET shared framework, or with a directory/file path for a non-dotnet-SDK framework)."
+            : null;
+
         if (json)
         {
             var results = matches.Select(t => new ImplementationsResultJson(Output.Kind(t), t.FullName, Output.AssemblyName(t))).ToList();
-            Console.WriteLine(JsonSerializer.Serialize(results, CliOutputJsonContext.Default.ListImplementationsResultJson));
+            var queryResult = new ImplementationsQueryResultJson(targetExists, hint, results);
+            Console.WriteLine(JsonSerializer.Serialize(queryResult, CliOutputJsonContext.Default.ImplementationsQueryResultJson));
             return 0;
         }
 
         if (!targetExists)
         {
-            var hint = autoFrameworkAttempted
-                ? $"Type '{name}' was not found in the indexed assemblies, and --framework-path couldn't locate/resolve it either."
-                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --path), or retry with --framework-path (bare, to auto-discover the local .NET shared framework, or with a directory/file path for a non-dotnet-SDK framework).";
             Console.WriteLine(hint);
             return 0;
         }

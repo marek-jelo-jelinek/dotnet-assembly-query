@@ -834,13 +834,39 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithJson_PrintsJsonArray()
+    public void Run_Implementations_WithJson_WithTypeNotIndexed_ReportsTargetNotIndexed()
     {
         var (exitCode, output, _) = RunCli("implementations", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
-        var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListImplementationsResultJson);
-        Assert.That(results, Is.Empty);
+        var result = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ImplementationsQueryResultJson);
+        Assert.That(result!.TargetIndexed, Is.False);
+        Assert.That(result.Hint, Does.Contain("was not found in the indexed assemblies"));
+        Assert.That(result.Implementations, Is.Empty);
+    }
+
+    [Test]
+    public void Run_Implementations_WithJson_WithIndexedTypeAndNoImplementers_ReportsTargetIndexedAndEmptyResults()
+    {
+        var (exitCode, output, _) = RunCli("implementations", "String", "--path", SomeRealAssemblyPath, "--json");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        var result = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ImplementationsQueryResultJson);
+        Assert.That(result!.TargetIndexed, Is.True);
+        Assert.That(result.Hint, Is.Null);
+        Assert.That(result.Implementations, Is.Empty);
+    }
+
+    [Test]
+    public void Run_Implementations_WithJson_WithMatch_ReportsTargetIndexedAndImplementers()
+    {
+        var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", SomeRealAssemblyPath, "--json");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        var result = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ImplementationsQueryResultJson);
+        Assert.That(result!.TargetIndexed, Is.True);
+        Assert.That(result.Hint, Is.Null);
+        Assert.That(result.Implementations.Any(r => r.Name.Contains("MemoryStream")), Is.True);
     }
 
     [Test]
