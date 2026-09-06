@@ -254,8 +254,8 @@ internal static class CliDispatch
         if (!targetExists)
         {
             var hint = autoFrameworkAttempted
-                ? $"Type '{name}' was not found in the indexed assemblies, and --framework-dir couldn't locate/resolve it either."
-                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --assembly or --dir), or retry with --framework-dir (bare, to auto-discover the local .NET shared framework, or with a directory/file path for a non-dotnet-SDK framework).";
+                ? $"Type '{name}' was not found in the indexed assemblies, and --framework-path couldn't locate/resolve it either."
+                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --path), or retry with --framework-path (bare, to auto-discover the local .NET shared framework, or with a directory/file path for a non-dotnet-SDK framework).";
             Console.WriteLine(hint);
             return 0;
         }

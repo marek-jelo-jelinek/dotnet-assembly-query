@@ -8,7 +8,7 @@ namespace Tesearis.DotNetAssemblyQuery;
 /// directory that best matches an already-loaded set of modules, so BCL types (e.g.
 /// <c>IDisposable</c>) can be resolved without the user manually pointing <c>--path</c>
 /// at <c>System.Private.CoreLib.dll</c>. Used by a bare <c>implementations
-/// --framework-dir</c>; <see cref="ResolveAssemblyPaths"/> also serves the explicit
+/// --framework-path</c>; <see cref="ResolveAssemblyPaths"/> also serves the explicit
 /// directory/file-list form of that same option.
 /// </summary>
 public static partial class FrameworkDiscovery

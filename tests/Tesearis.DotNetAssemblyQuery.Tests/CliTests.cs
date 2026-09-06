@@ -493,10 +493,10 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithBareFrameworkDir_ExcludesFrameworkTypeByDefault()
+    public void Run_Implementations_WithBareFrameworkPath_ExcludesFrameworkTypeByDefault()
     {
         // Unlike the tests above, this fixture's own directory does NOT contain
-        // System.Private.CoreLib.dll - only a bare --framework-dir's auto-discovery of the local
+        // System.Private.CoreLib.dll - only a bare --framework-path's auto-discovery of the local
         // shared framework can make IDisposable resolvable here. This fixture has no primary
         // implementer of IDisposable at all, so by default (framework-origin implementers
         // excluded), nothing should be reported even though MemoryStream et al. do implement it.
@@ -508,7 +508,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-path");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Not.Contain("MemoryStream"));
@@ -521,7 +521,7 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithBareFrameworkDirAndIncludeFrameworkResults_ResolvesFrameworkType()
+    public void Run_Implementations_WithBareFrameworkPathAndIncludeFrameworkResults_ResolvesFrameworkType()
     {
         // Same fixture/setup as above, but --include-framework-results opts back into reporting
         // framework-origin implementers.
@@ -533,7 +533,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir", "--include-framework-results");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-path", "--include-framework-results");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("MemoryStream"));
@@ -545,7 +545,7 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithFrameworkDir_ExcludesUnrelatedFrameworkImplementer_ByDefault()
+    public void Run_Implementations_WithFrameworkPath_ExcludesUnrelatedFrameworkImplementer_ByDefault()
     {
         // Reproduces the original complaint: a primary-dir type implementing IDisposable should be
         // reported, but the (huge) set of framework/BCL types that also implement IDisposable
@@ -558,7 +558,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-path");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("PrimaryDisposable"));
@@ -571,7 +571,7 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithFrameworkDirAndIncludeFrameworkResults_IncludesBoth()
+    public void Run_Implementations_WithFrameworkPathAndIncludeFrameworkResults_IncludesBoth()
     {
         var dllPath = CompileFixtureWithDisposableImplementer();
         if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
@@ -581,7 +581,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir", "--include-framework-results");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-path", "--include-framework-results");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("PrimaryDisposable"));
@@ -594,12 +594,12 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithFrameworkDir_ResolvesAcrossSeparateDirectories()
+    public void Run_Implementations_WithFrameworkPath_ResolvesAcrossSeparateDirectories()
     {
         var (interfaceDir, implementerDllPath) = CompileFixtureAcrossTwoDirectories();
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IMarker", "--path", implementerDllPath, "--framework-dir", interfaceDir);
+            var (exitCode, output, _) = RunCli("implementations", "IMarker", "--path", implementerDllPath, "--framework-path", interfaceDir);
 
             Assert.That(exitCode, Is.EqualTo(0));
             // "IMarker"/"Instance" share no substring, unlike e.g. "IWidget"/"Widget" - a fix that
@@ -615,7 +615,7 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithTypeNotIndexed_WithoutFrameworkDir_StillJustHints()
+    public void Run_Implementations_WithTypeNotIndexed_WithoutFrameworkPath_StillJustHints()
     {
         // Same fixture as above, but without the flag - the hint fires, no framework scan happens.
         var dllPath = CompileFixtureWithoutCoreLib();
@@ -634,15 +634,15 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithMixedDirectoryAndFileFrameworkDir_ResolvesBoth()
+    public void Run_Implementations_WithMixedDirectoryAndFileFrameworkPath_ResolvesBoth()
     {
         var (interfaceDir, looseFileDllPath, implementerDllPath) = CompileFixtureAcrossADirectoryAndALooseFile();
         try
         {
             var (exitCode, output, _) = RunCli(
                 "implementations", "IOtherMarker", "--path", implementerDllPath,
-                "--framework-dir", interfaceDir,
-                "--framework-dir", looseFileDllPath);
+                "--framework-path", interfaceDir,
+                "--framework-path", looseFileDllPath);
 
             Assert.That(exitCode, Is.EqualTo(0));
             // IOtherMarker is only resolvable via the loose-file entry; the unrelated directory

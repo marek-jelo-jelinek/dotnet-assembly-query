@@ -66,7 +66,7 @@ public class DaemonIntegrationTests
     }
 
     [Test]
-    public async Task WithFrameworkDir_ResolvesAcrossSeparateDirectories_ThroughTheDaemon()
+    public async Task WithFrameworkPath_ResolvesAcrossSeparateDirectories_ThroughTheDaemon()
     {
         // Same shape as CliTests' equivalent, but through the real daemon path -
         // DaemonHost.GetOrLoadFrameworkTypes has its own resolver-sharing logic, distinct from
@@ -101,7 +101,7 @@ public class DaemonIntegrationTests
     }
 
     [Test]
-    public async Task WithMixedDirectoryAndFileFrameworkDir_ResolvesBoth_ThroughTheDaemon()
+    public async Task WithMixedDirectoryAndFileFrameworkPath_ResolvesBoth_ThroughTheDaemon()
     {
         var (interfaceDir, looseFileDllPath, implementerDllPath) = CompileFixtureAcrossADirectoryAndALooseFile();
         var signature = DllSetSignature.Compute([implementerDllPath]);
@@ -331,7 +331,7 @@ public class DaemonIntegrationTests
 
     /// <summary>
     /// Compiles three fixture assemblies: <c>IMarker</c> into its own directory (the directory-form
-    /// <c>--framework-dir</c> entry), <c>IOtherMarker</c> into a standalone loose DLL in a second,
+    /// <c>--framework-path</c> entry), <c>IOtherMarker</c> into a standalone loose DLL in a second,
     /// unrelated directory (the file-form entry - passed by its DLL path, not its containing
     /// directory), and an implementer referencing both, declaring <c>Instance : IMarker,
     /// IOtherMarker</c>.

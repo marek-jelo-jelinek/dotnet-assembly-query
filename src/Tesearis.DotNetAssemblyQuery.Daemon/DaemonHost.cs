@@ -190,7 +190,7 @@ public static class DaemonHost
         else
         {
             // frameworkPathsOverride is either null (shouldn't reach here - the caller only
-            // invokes this when FrameworkPaths != null) or empty (bare --framework-dir:
+            // invokes this when FrameworkPaths != null) or empty (bare --framework-path:
             // auto-discover the local shared framework).
             if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var directory) || directory == null)
             {

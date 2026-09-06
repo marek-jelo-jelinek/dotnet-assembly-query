@@ -109,7 +109,7 @@ public static class Cli
             }
 
             // One-shot (no daemon to cache across calls): load the framework/override directory's
-            // types only if implementations --framework-dir actually needs them.
+            // types only if implementations --framework-path actually needs them.
             List<TypeDefinition> LoadAutoFrameworkTypes()
             {
                 List<string> entries;

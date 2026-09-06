@@ -45,7 +45,7 @@ internal static class CliOptionsParser
         Description = "Run the daemon in the foreground instead of detaching.",
     };
 
-    private static readonly Option<string[]> FrameworkDirOption = new("--framework-dir")
+    private static readonly Option<string[]> FrameworkPathOption = new("--framework-path")
     {
         Description = "If the target type isn't indexed, discover and load extra types to resolve it " +
             "(repeatable). Bare (no value): auto-discover the local machine's matching .NET shared " +
@@ -57,8 +57,8 @@ internal static class CliOptionsParser
 
     private static readonly Option<bool> IncludeFrameworkResultsOption = new("--include-framework-results")
     {
-        Description = "Include implementers declared only in --framework-dir-loaded assemblies in the " +
-            "reported results. By default, --framework-dir assemblies are used only to resolve the " +
+        Description = "Include implementers declared only in --framework-path-loaded assemblies in the " +
+            "reported results. By default, --framework-path assemblies are used only to resolve the " +
             "target type and walk base-type/interface chains; only types from --path are " +
             "reported as implementers.",
     };
@@ -131,7 +131,7 @@ internal static class CliOptionsParser
 
         if (features.HasFlag(SubcommandFeatures.AutoFramework))
         {
-            command.Options.Add(FrameworkDirOption);
+            command.Options.Add(FrameworkPathOption);
             command.Options.Add(IncludeFrameworkResultsOption);
         }
 
@@ -149,8 +149,8 @@ internal static class CliOptionsParser
                 Kind = features.HasFlag(SubcommandFeatures.Kind) ? parseResult.GetValue(KindOption) : null,
                 Namespace = features.HasFlag(SubcommandFeatures.Filters) ? parseResult.GetValue(NamespaceOption) : null,
                 AssemblyName = features.HasFlag(SubcommandFeatures.Filters) ? parseResult.GetValue(AssemblyNameOption) : null,
-                FrameworkPaths = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetResult(FrameworkDirOption) != null
-                    ? [.. parseResult.GetValue(FrameworkDirOption) ?? []]
+                FrameworkPaths = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetResult(FrameworkPathOption) != null
+                    ? [.. parseResult.GetValue(FrameworkPathOption) ?? []]
                     : null,
                 IncludeFrameworkResults = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(IncludeFrameworkResultsOption),
                 Json = parseResult.GetValue(JsonOption),

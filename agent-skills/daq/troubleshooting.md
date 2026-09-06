@@ -20,10 +20,10 @@
 - `--daemon-idle-timeout expects a positive number of seconds, got '<value>'.` (exit 2)
 - `Type '<name>' was not found in the indexed assemblies. If it's a framework/BCL type (e.g.
   IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via
-  --path), or retry with --framework-dir.` - printed by `implementations` (exit 0, this is a valid outcome, not an error) when the
+  --path), or retry with --framework-path.` - printed by `implementations` (exit 0, this is a valid outcome, not an error) when the
   interface/base type itself isn't among the indexed types. This is deliberately distinct from `No implementations of '<name>' found.`, which means
-  the type *is* indexed but nothing implements/derives from it in your own `--path` assemblies (a `--framework-dir`-only implementer, if
-  any, is deliberately not reported by default - see the `--framework-dir` limitation below).
+  the type *is* indexed but nothing implements/derives from it in your own `--path` assemblies (a `--framework-path`-only implementer, if
+  any, is deliberately not reported by default - see the `--framework-path` limitation below).
 - `skipped N native (non-.NET) DLL(s) found via --path directory scan` (stderr warning, doesn't affect exit code) - a `--path` directory scan silently excludes non-managed
   DLLs it finds alongside real assemblies (native AOT shims, SQLite, SkiaSharp, etc.) instead of failing to load each one. A DLL passed explicitly (not
   found via a directory scan) is never filtered this way - if it isn't managed, loading it fails for real and is reported per-file.
@@ -32,9 +32,9 @@
 
 - `implementations` only searches types physically declared in an indexed assembly - including the interface/base type itself. A framework/BCL
   interface (e.g. `IDisposable`) requires indexing its defining assembly (`System.Private.CoreLib.dll`) explicitly, or passing a bare
-  `--framework-dir` so `daq` discovers and loads the local machine's matching `Microsoft.NETCore.App` shared framework on demand. For an
-  interface/base type that isn't part of any dotnet SDK's shared framework, pass `--framework-dir <path>` (repeatable, mixing directories and explicit
-  file paths) to point `daq` at those locations directly instead of relying on auto-discovery. By default, `--framework-dir` assemblies are used only
+  `--framework-path` so `daq` discovers and loads the local machine's matching `Microsoft.NETCore.App` shared framework on demand. For an
+  interface/base type that isn't part of any dotnet SDK's shared framework, pass `--framework-path <path>` (repeatable, mixing directories and explicit
+  file paths) to point `daq` at those locations directly instead of relying on auto-discovery. By default, `--framework-path` assemblies are used only
   to resolve the target type and walk base-type chains - implementers declared only there aren't reported (avoids flooding output with every BCL type
   that implements a common interface like `IDisposable`). Pass `--include-framework-results` to include them.
 - `go-to-definition`/`find-references` resolve source locations from portable PDB sequence points. An assembly built without a portable PDB (or with

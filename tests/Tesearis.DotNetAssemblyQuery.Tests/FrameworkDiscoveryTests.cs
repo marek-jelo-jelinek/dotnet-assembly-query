@@ -6,7 +6,7 @@ namespace Tesearis.DotNetAssemblyQuery.Tests;
 /// Exercises <see cref="FrameworkDiscovery.SelectBestVersionDirectory"/>'s version-matching
 /// logic in isolation, against a fabricated directory listing - no real local .NET install
 /// required (unlike <see cref="FrameworkDiscovery.TryLocateSharedFrameworkDirectory"/> itself,
-/// covered end to end by <c>CliTests.Run_Implementations_WithBareFrameworkDir_ResolvesFrameworkType</c>) -
+/// covered end to end by <c>CliTests.Run_Implementations_WithBareFrameworkPathAndIncludeFrameworkResults_ResolvesFrameworkType</c>) -
 /// plus <see cref="FrameworkDiscovery.ResolveAssemblyPaths"/>'s per-entry directory-vs-file
 /// classification.
 /// </summary>

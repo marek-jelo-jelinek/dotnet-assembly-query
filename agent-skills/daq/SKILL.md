@@ -36,10 +36,10 @@ daq find-symbol MyClass --path ./bin/Debug/net8.0
 Narrow ambiguous matches (any query command except `list-assemblies`; `implementations` skips
 `--kind`): `--kind type|method|field|property`, `--namespace <ns>`, `--assembly-name <name>`.
 
-`implementations --framework-dir` (repeatable): if the target interface/base type isn't indexed, resolves it from extra types. Bare
-(`--framework-dir` with no value) discovers and loads the local machine's matching `Microsoft.NETCore.App` shared framework instead of
+`implementations --framework-path` (repeatable): if the target interface/base type isn't indexed, resolves it from extra types. Bare
+(`--framework-path` with no value) discovers and loads the local machine's matching `Microsoft.NETCore.App` shared framework instead of
 requiring you to index it manually. Given one or more values, each is a directory or an explicit file path - mix freely. By default,
-`--framework-dir` assemblies are reference-only: they help resolve the target type, but types declared only there aren't reported as
+`--framework-path` assemblies are reference-only: they help resolve the target type, but types declared only there aren't reported as
 implementers (so results stay limited to your own `--path` types instead of every matching BCL type). Pass
 `--include-framework-results` to include framework-declared implementers too.
 
