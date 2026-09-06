@@ -456,9 +456,27 @@ public class AssemblyQueryTests
 
         var location = SourceLocator.ResolveSourceLocation(field, _fixtureDir);
 
+        // Approximate locations omit the line - it would belong to an unrelated method - and report
+        // just the file.
         Assert.That(location, Is.Not.Null);
         Assert.That(location!.IsApproximate, Is.True);
-        Assert.That(location.ToString(), Does.Contain("approximate"));
+        Assert.That(location.Line, Is.Null);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
+        Assert.That(location.ToString(), Is.EqualTo(location.Path));
+    }
+
+    [Test]
+    public void ResolveSourceLocation_FallsBackToApproximateLocationForTypes()
+    {
+        var types = LoadFixtureTypes();
+        var greeterType = types.Single(t => t.FullName == "Fixture.Greeter");
+
+        var location = SourceLocator.ResolveSourceLocation(greeterType, _fixtureDir);
+
+        Assert.That(location, Is.Not.Null);
+        Assert.That(location!.IsApproximate, Is.True);
+        Assert.That(location.Line, Is.Null);
+        Assert.That(location.Path, Does.Contain("Fixture.cs"));
     }
 
     [Test]

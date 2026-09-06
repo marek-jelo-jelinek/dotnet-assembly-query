@@ -33,8 +33,9 @@ public static class SourceLocator
         }
 
         // No sequence points on the member itself (e.g. a type, plain field, or a property with
-        // no resolvable accessor) - fall back to the first visible sequence point of any method on
-        // the containing type, as an approximation.
+        // no resolvable accessor) - fall back to the file of any method on the containing type, as
+        // an approximation. Its line number would be arbitrary (just whichever method happens to be
+        // first), so it's deliberately left out - only the file is reported.
         var containingType = member as TypeDefinition ?? member.DeclaringType;
         SequencePoint? anySequencePoint = null;
         if (containingType != null)
@@ -48,7 +49,7 @@ public static class SourceLocator
             }
         }
 
-        return anySequencePoint != null ? FormatLocation(anySequencePoint, sourceRoot, isApproximate: true) : null;
+        return anySequencePoint != null ? FormatApproximateLocation(anySequencePoint, sourceRoot) : null;
     }
 
     /// <summary>Resolves a property's location via its get/set accessor's own sequence points, if either has one.</summary>
@@ -130,6 +131,21 @@ public static class SourceLocator
 
     private static SourceLocation FormatLocation(SequencePoint sequencePoint, string sourceRoot, bool isApproximate)
     {
+        return FormatLocationCore(sequencePoint, sourceRoot, isApproximate, sequencePoint.StartLine);
+    }
+
+    /// <summary>
+    /// Formats an approximate location without a line number: the sequence point's own line
+    /// belongs to an unrelated method (the containing type's), so reporting it would be misleading -
+    /// only the file it came from is trustworthy.
+    /// </summary>
+    private static SourceLocation FormatApproximateLocation(SequencePoint sequencePoint, string sourceRoot)
+    {
+        return FormatLocationCore(sequencePoint, sourceRoot, isApproximate: true, line: null);
+    }
+
+    private static SourceLocation FormatLocationCore(SequencePoint sequencePoint, string sourceRoot, bool isApproximate, int? line)
+    {
         var rawPath = sequencePoint.Document.Url;
 
         // Match on a folder boundary, not a bare prefix. Normalize separators to handle
@@ -144,6 +160,6 @@ public static class SourceLocator
             path = Path.GetRelativePath(normalizedRootPath, normalizedPath);
         }
 
-        return new SourceLocation(path, sequencePoint.StartLine, isApproximate);
+        return new SourceLocation(path, line, isApproximate);
     }
 }

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Tesearis.DotNetAssemblyQuery;
 
 /// <summary>The <c>--json</c> shape of a resolved <see cref="SourceLocation"/>.</summary>
-internal sealed record SourceLocationJson(string Path, int Line, bool IsApproximate);
+internal sealed record SourceLocationJson(string Path, int? Line, bool IsApproximate);
 
 internal sealed record FindSymbolResultJson(string Kind, string Name, string Assembly);
 
