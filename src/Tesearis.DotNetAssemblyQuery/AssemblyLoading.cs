@@ -8,74 +8,67 @@ namespace Tesearis.DotNetAssemblyQuery;
 public static class AssemblyLoading
 {
     /// <summary>
-    /// Resolves DLL paths from <c>--assembly</c>/<c>--dir</c>, falling back to the current
-    /// directory. Unresolved patterns are reported in <paramref name="warnings"/>. A <c>--dir</c>
-    /// scan silently drops native (non-.NET) DLLs it finds and reports a single collapsed count
-    /// in <paramref name="warnings"/> instead of failing to load each one individually later.
-    /// DLLs named explicitly via <c>--assembly</c> are never filtered this way, so a direct request
+    /// Resolves DLL paths from <c>--path</c>, falling back to the current directory when empty.
+    /// Each entry is auto-detected as a directory (non-recursive <c>*.dll</c> scan) or a file/glob
+    /// pattern. Unresolved patterns are reported in <paramref name="warnings"/>. A directory scan
+    /// silently drops native (non-.NET) DLLs it finds and reports a single collapsed count in
+    /// <paramref name="warnings"/> instead of failing to load each one individually later. DLLs
+    /// named explicitly (not via a directory scan) are never filtered this way, so a direct request
     /// about a specific file still gets a real per-file load failure if it turns out not to be managed.
     /// </summary>
-    public static List<string> DiscoverDllPaths(IReadOnlyList<string> assemblyPaths, IReadOnlyList<string> directories, out List<string> warnings)
+    public static List<string> DiscoverDllPaths(IReadOnlyList<string> paths, out List<string> warnings)
     {
-        var paths = new List<string>();
+        var resolvedPaths = new List<string>();
         warnings = [];
 
-        foreach (var pattern in assemblyPaths)
-        {
-            var matches = ResolveGlob(pattern);
-            if (matches.Count == 0)
-            {
-                warnings.Add($"--assembly matched no files: {pattern}");
-            }
-
-            paths.AddRange(matches);
-        }
-
-        var effectiveDirectories = new List<string>(directories);
-        if (directories.Count == 0 && assemblyPaths.Count == 0)
-        {
-            effectiveDirectories.Add(Directory.GetCurrentDirectory());
-        }
+        var effectivePaths = paths.Count == 0 ? [Directory.GetCurrentDirectory()] : paths;
 
         var nativeSkippedCount = 0;
-        foreach (var dir in effectiveDirectories)
+        foreach (var entry in effectivePaths)
         {
-            if (!Directory.Exists(dir))
+            if (Directory.Exists(entry))
             {
-                warnings.Add($"--dir not found: {dir}");
+                try
+                {
+                    foreach (var dllPath in Directory.GetFiles(entry, "*.dll"))
+                    {
+                        if (ManagedAssemblyDetection.IsManagedAssembly(dllPath))
+                        {
+                            resolvedPaths.Add(dllPath);
+                        }
+                        else
+                        {
+                            nativeSkippedCount++;
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    warnings.Add($"--path could not be read: {entry} ({ex.Message})");
+                }
+
                 continue;
             }
 
-            try
+            var matches = ResolveGlob(entry);
+            if (matches.Count == 0)
             {
-                foreach (var dllPath in Directory.GetFiles(dir, "*.dll"))
-                {
-                    if (ManagedAssemblyDetection.IsManagedAssembly(dllPath))
-                    {
-                        paths.Add(dllPath);
-                    }
-                    else
-                    {
-                        nativeSkippedCount++;
-                    }
-                }
+                warnings.Add($"--path matched no files: {entry}");
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                warnings.Add($"--dir could not be read: {dir} ({ex.Message})");
-            }
+
+            resolvedPaths.AddRange(matches);
         }
 
         if (nativeSkippedCount > 0)
         {
-            warnings.Add($"skipped {nativeSkippedCount} native (non-.NET) DLL(s) found via --dir scan");
+            warnings.Add($"skipped {nativeSkippedCount} native (non-.NET) DLL(s) found via --path directory scan");
         }
 
         // Normalize before dedup so the same DLL reached via two different path spellings (e.g.
-        // via --assembly vs. a --dir scan) is only loaded once.
+        // via an explicit file and a directory scan) is only loaded once.
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var uniquePaths = new List<string>();
-        foreach (var path in paths)
+        foreach (var path in resolvedPaths)
         {
             if (seen.Add(Path.GetFullPath(path)))
             {

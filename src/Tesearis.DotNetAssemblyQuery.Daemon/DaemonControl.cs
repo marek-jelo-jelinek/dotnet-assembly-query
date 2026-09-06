@@ -47,13 +47,13 @@ public static class DaemonControl
         return 0;
     }
 
-    /// <summary>Stops the daemon(s) matching <paramref name="assemblyPaths"/>/<paramref name="directories"/>, or all of them if neither is given.</summary>
-    public static int Stop(List<string> assemblyPaths, List<string> directories, bool json)
+    /// <summary>Stops the daemon(s) matching <paramref name="paths"/>, or all of them if it's empty.</summary>
+    public static int Stop(List<string> paths, bool json)
     {
         var entries = DaemonRegistry.ListEntries();
-        if (assemblyPaths.Count > 0 || directories.Count > 0)
+        if (paths.Count > 0)
         {
-            var dllPaths = AssemblyLoading.DiscoverDllPaths(assemblyPaths, directories, out _);
+            var dllPaths = AssemblyLoading.DiscoverDllPaths(paths, out _);
             var signature = DllSetSignature.Compute(dllPaths);
             entries = entries.Where(e => e.Signature == signature).ToList();
         }
@@ -123,12 +123,12 @@ public static class DaemonControl
     }
 
     /// <summary>Starts a daemon for the resolved DLL set, either in the foreground or spawned detached.</summary>
-    public static int Start(List<string> assemblyPaths, List<string> directories, bool foreground, int? idleTimeoutSeconds, bool json, DaemonDispatch dispatch)
+    public static int Start(List<string> paths, bool foreground, int? idleTimeoutSeconds, bool json, DaemonDispatch dispatch)
     {
         List<string> dllPaths;
         try
         {
-            dllPaths = AssemblyLoading.DiscoverDllPaths(assemblyPaths, directories, out var warnings);
+            dllPaths = AssemblyLoading.DiscoverDllPaths(paths, out var warnings);
             foreach (var warning in warnings)
             {
                 Console.Error.WriteLine($"Warning: {warning}");
@@ -142,7 +142,7 @@ public static class DaemonControl
 
         if (dllPaths.Count == 0)
         {
-            Console.Error.WriteLine("No assemblies found (use --assembly/--dir, or run from a directory containing .dll files).");
+            Console.Error.WriteLine("No assemblies found (use --path, or run from a directory containing .dll files).");
             return 1;
         }
 

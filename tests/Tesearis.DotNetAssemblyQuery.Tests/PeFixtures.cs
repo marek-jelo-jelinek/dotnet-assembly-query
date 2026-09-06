@@ -2,7 +2,7 @@ namespace Tesearis.DotNetAssemblyQuery.Tests;
 
 /// <summary>
 /// Builds the minimal PE32 byte layout <see cref="ManagedAssemblyDetection"/> parses, so tests
-/// can exercise it (and the --dir scan filter built on it) without shipping real binary fixtures.
+/// can exercise it (and the --path directory-scan filter built on it) without shipping real binary fixtures.
 /// </summary>
 internal static class PeFixtures
 {

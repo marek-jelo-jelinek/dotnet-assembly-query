@@ -10,7 +10,7 @@
 
 ## Common messages
 
-- `No assemblies found (use --assembly/--dir, or run from a directory containing .dll files).` (exit 1) - none of `--assembly`/`--dir` resolved to any
+- `No assemblies found (use --path, or run from a directory containing .dll files).` (exit 1) - none of `--path` resolved to any
   DLL, and the current directory has none either. Point `daq` at a real build output directory (`dotnet build` first if it doesn't exist yet).
 - `Error: <message>` (exit 1) - an assembly or PDB failed to load, or another runtime exception was thrown. The message is the underlying exception's,
   printed as-is.
@@ -20,13 +20,13 @@
 - `--daemon-idle-timeout expects a positive number of seconds, got '<value>'.` (exit 2)
 - `Type '<name>' was not found in the indexed assemblies. If it's a framework/BCL type (e.g.
   IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via
-  --assembly or --dir), or retry with --framework-dir.` - printed by `implementations` (exit 0, this is a valid outcome, not an error) when the
+  --path), or retry with --framework-dir.` - printed by `implementations` (exit 0, this is a valid outcome, not an error) when the
   interface/base type itself isn't among the indexed types. This is deliberately distinct from `No implementations of '<name>' found.`, which means
-  the type *is* indexed but nothing implements/derives from it in your own `--assembly`/`--dir` assemblies (a `--framework-dir`-only implementer, if
+  the type *is* indexed but nothing implements/derives from it in your own `--path` assemblies (a `--framework-dir`-only implementer, if
   any, is deliberately not reported by default - see the `--framework-dir` limitation below).
-- `skipped N native (non-.NET) DLL(s) found via --dir scan` (stderr warning, doesn't affect exit code) - a `--dir` scan silently excludes non-managed
-  DLLs it finds alongside real assemblies (native AOT shims, SQLite, SkiaSharp, etc.) instead of failing to load each one. A DLL passed explicitly via
-  `--assembly` is never filtered this way - if it isn't managed, loading it fails for real and is reported per-file.
+- `skipped N native (non-.NET) DLL(s) found via --path directory scan` (stderr warning, doesn't affect exit code) - a `--path` directory scan silently excludes non-managed
+  DLLs it finds alongside real assemblies (native AOT shims, SQLite, SkiaSharp, etc.) instead of failing to load each one. A DLL passed explicitly (not
+  found via a directory scan) is never filtered this way - if it isn't managed, loading it fails for real and is reported per-file.
 
 ## Known limitations
 

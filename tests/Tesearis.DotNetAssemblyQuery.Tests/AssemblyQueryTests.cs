@@ -160,15 +160,13 @@ public class AssemblyQueryTests
     [Test]
     public void DiscoverDllPaths_DedupesSameFileReachedViaDifferentPathSpellings()
     {
-        // The fixture DLL is reachable both directly via --assembly and via a --dir scan of its
-        // containing directory - these are two different path spellings for the same file
-        // (relative vs. directory-scan-produced), and should collapse to a single entry.
+        // The fixture DLL is reachable both directly via an explicit file entry and via a
+        // directory-scan entry for its containing directory - these are two different path
+        // spellings for the same file (relative vs. directory-scan-produced), and should
+        // collapse to a single entry.
         var relativeSpelling = Path.Combine(_fixtureDir, ".", Path.GetFileName(_dllPath));
 
-        var paths = AssemblyLoading.DiscoverDllPaths(
-            assemblyPaths: [relativeSpelling],
-            directories: [_fixtureDir],
-            out _);
+        var paths = AssemblyLoading.DiscoverDllPaths([relativeSpelling, _fixtureDir], out _);
 
         var matchingFixtureDll = paths.Count(p => string.Equals(Path.GetFullPath(p), _dllPath, StringComparison.OrdinalIgnoreCase));
         Assert.That(matchingFixtureDll, Is.EqualTo(1));
@@ -183,10 +181,7 @@ public class AssemblyQueryTests
         File.Copy(_dllPath, subDll, overwrite: true);
 
         var pattern = Path.Combine(_fixtureDir, "**", "*.dll");
-        var paths = AssemblyLoading.DiscoverDllPaths(
-            assemblyPaths: [pattern],
-            directories: [],
-            out var warnings);
+        var paths = AssemblyLoading.DiscoverDllPaths([pattern], out var warnings);
 
         Assert.That(warnings, Is.Empty);
         Assert.That(paths.Any(p => Path.GetFileName(p) == "Nested.dll"), Is.True);
@@ -203,10 +198,10 @@ public class AssemblyQueryTests
         File.Copy(_dllPath, managedPath, overwrite: true);
         File.WriteAllBytes(nativePath, PeFixtures.MinimalPeHeader(managed: false));
 
-        var paths = AssemblyLoading.DiscoverDllPaths(assemblyPaths: [], directories: [scanDir], out var warnings);
+        var paths = AssemblyLoading.DiscoverDllPaths([scanDir], out var warnings);
 
         Assert.That(paths.Select(Path.GetFileName), Is.EquivalentTo(new[] { "Managed.dll" }));
-        Assert.That(warnings, Is.EqualTo(new[] { "skipped 1 native (non-.NET) DLL(s) found via --dir scan" }));
+        Assert.That(warnings, Is.EqualTo(new[] { "skipped 1 native (non-.NET) DLL(s) found via --path directory scan" }));
     }
 
     [Test]
@@ -216,7 +211,7 @@ public class AssemblyQueryTests
         Directory.CreateDirectory(scanDir);
         File.Copy(_dllPath, Path.Combine(scanDir, "Managed.dll"), overwrite: true);
 
-        var paths = AssemblyLoading.DiscoverDllPaths(assemblyPaths: [], directories: [scanDir], out var warnings);
+        var paths = AssemblyLoading.DiscoverDllPaths([scanDir], out var warnings);
 
         Assert.That(paths.Select(Path.GetFileName), Is.EquivalentTo(new[] { "Managed.dll" }));
         Assert.That(warnings, Is.Empty);
@@ -228,7 +223,7 @@ public class AssemblyQueryTests
         var nativePath = Path.Combine(_fixtureDir, "ExplicitNative.dll");
         File.WriteAllBytes(nativePath, PeFixtures.MinimalPeHeader(managed: false));
 
-        var paths = AssemblyLoading.DiscoverDllPaths(assemblyPaths: [nativePath], directories: [], out var warnings);
+        var paths = AssemblyLoading.DiscoverDllPaths([nativePath], out var warnings);
 
         Assert.That(paths, Is.EqualTo(new[] { nativePath }));
         Assert.That(warnings, Is.Empty);

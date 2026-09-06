@@ -7,7 +7,7 @@ on every invocation, `daq` transparently keeps a warm background daemon per dist
 
 You don't opt into this - it just happens:
 
-1. The first query against a given `--assembly`/`--dir` set runs entirely in-process, exactly
+1. The first query against a given `--path` set runs entirely in-process, exactly
    as if there were no daemon (same output, no extra latency).
 2. As a side effect, that same invocation spawns a detached daemon process for that DLL set
    (identified by a signature computed from the resolved DLL paths) and exits normally.
@@ -40,13 +40,13 @@ Lists live daemons (signature, pid, number of DLLs loaded, uptime). Stale entrie
 longer alive) are pruned automatically.
 
 ```
-daq daemon stop [--assembly <path>]... [--dir <path>]... [--json]
+daq daemon stop [--path <path>]... [--json]
 ```
-Stops the daemon matching that DLL set, or every running daemon if no `--assembly`/`--dir` is
+Stops the daemon matching that DLL set, or every running daemon if no `--path` is
 given. Tries a graceful shutdown over the pipe first, falls back to killing the process.
 
 ```
-daq daemon start --foreground --dir ./bin/Debug/net8.0 [--daemon-idle-timeout <seconds>] [--json]
+daq daemon start --foreground --path ./bin/Debug/net8.0 [--daemon-idle-timeout <seconds>] [--json]
 ```
 Runs a daemon for the given DLL set in the foreground (blocks, logs to the current console) -
 useful for debugging the daemon itself. Without `--foreground` it spawns detached, same as the

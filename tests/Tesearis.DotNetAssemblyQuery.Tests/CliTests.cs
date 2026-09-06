@@ -13,7 +13,7 @@ namespace Tesearis.DotNetAssemblyQuery.Tests;
 [TestFixture]
 public class CliTests
 {
-    // Any already-loaded, on-disk assembly works as a stand-in for a "real" --assembly target;
+    // Any already-loaded, on-disk assembly works as a stand-in for a "real" --path target;
     // we're only exercising argument handling here, not the query logic itself (covered in
     // AssemblyQueryTests against the compiled fixture).
     private static readonly string SomeRealAssemblyPath = typeof(object).Assembly.Location;
@@ -100,10 +100,10 @@ public class CliTests
     [Test]
     public void Run_WithFlagMissingValue_PrintsError()
     {
-        var (exitCode, _, error) = RunCli("find-symbol", "Foo", "--assembly");
+        var (exitCode, _, error) = RunCli("find-symbol", "Foo", "--path");
 
         Assert.That(exitCode, Is.EqualTo(2));
-        Assert.That(error, Does.Contain("Required argument missing for option: '--assembly'."));
+        Assert.That(error, Does.Contain("Required argument missing for option: '--path'."));
     }
 
     [Test]
@@ -113,7 +113,7 @@ public class CliTests
         Directory.CreateDirectory(emptyDir);
         try
         {
-            var (exitCode, _, error) = RunCli("find-symbol", "Foo", "--dir", emptyDir);
+            var (exitCode, _, error) = RunCli("find-symbol", "Foo", "--path", emptyDir);
 
             Assert.That(exitCode, Is.EqualTo(1));
             Assert.That(error, Does.Contain("No assemblies found"));
@@ -127,7 +127,7 @@ public class CliTests
     [Test]
     public void Run_WithUnknownCommand_PrintsErrorAndUsage()
     {
-        var (exitCode, output, error) = RunCli("not-a-command", "Foo", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, error) = RunCli("not-a-command", "Foo", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(2));
         Assert.That(error, Does.Contain("Unrecognized command or argument 'not-a-command'."));
@@ -137,7 +137,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithInlineFlagValue_FindsMatch()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "Object", $"--assembly={SomeRealAssemblyPath}");
+        var (exitCode, output, _) = RunCli("find-symbol", "Object", $"--path={SomeRealAssemblyPath}");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -146,7 +146,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithKindFilter_NarrowsToMatchingKind()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--kind", "type", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--kind", "type", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -155,7 +155,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithKindFilter_ExcludesNonMatchingKind()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--kind", "method", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--kind", "method", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol named 'Object' found."));
@@ -164,7 +164,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithInvalidKind_PrintsError()
     {
-        var (exitCode, _, error) = RunCli("find-symbol", "Object", "--kind", "bogus", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, _, error) = RunCli("find-symbol", "Object", "--kind", "bogus", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(2));
         Assert.That(error, Does.Contain("--kind expects one of"));
@@ -173,11 +173,11 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithNamespaceFilter_NarrowsMatches()
     {
-        var (matchExitCode, matchOutput, _) = RunCli("find-symbol", "Object", "--namespace", "System", "--assembly", SomeRealAssemblyPath);
+        var (matchExitCode, matchOutput, _) = RunCli("find-symbol", "Object", "--namespace", "System", "--path", SomeRealAssemblyPath);
         Assert.That(matchExitCode, Is.EqualTo(0));
         Assert.That(matchOutput, Does.Contain("Object"));
 
-        var (noMatchExitCode, noMatchOutput, _) = RunCli("find-symbol", "Object", "--namespace", "NoSuchNamespace", "--assembly", SomeRealAssemblyPath);
+        var (noMatchExitCode, noMatchOutput, _) = RunCli("find-symbol", "Object", "--namespace", "NoSuchNamespace", "--path", SomeRealAssemblyPath);
         Assert.That(noMatchExitCode, Is.EqualTo(0));
         Assert.That(noMatchOutput, Does.Contain("No symbol named 'Object' found."));
     }
@@ -187,11 +187,11 @@ public class CliTests
     {
         var assemblyName = System.Reflection.AssemblyName.GetAssemblyName(SomeRealAssemblyPath).Name;
 
-        var (matchExitCode, matchOutput, _) = RunCli("find-symbol", "Object", "--assembly-name", assemblyName!, "--assembly", SomeRealAssemblyPath);
+        var (matchExitCode, matchOutput, _) = RunCli("find-symbol", "Object", "--assembly-name", assemblyName!, "--path", SomeRealAssemblyPath);
         Assert.That(matchExitCode, Is.EqualTo(0));
         Assert.That(matchOutput, Does.Contain("Object"));
 
-        var (noMatchExitCode, noMatchOutput, _) = RunCli("find-symbol", "Object", "--assembly-name", "NoSuchAssembly", "--assembly", SomeRealAssemblyPath);
+        var (noMatchExitCode, noMatchOutput, _) = RunCli("find-symbol", "Object", "--assembly-name", "NoSuchAssembly", "--path", SomeRealAssemblyPath);
         Assert.That(noMatchExitCode, Is.EqualTo(0));
         Assert.That(noMatchOutput, Does.Contain("No symbol named 'Object' found."));
     }
@@ -214,7 +214,7 @@ public class CliTests
         Directory.CreateDirectory(emptyDir);
         try
         {
-            var (exitCode, _, error) = RunCli("daemon", "start", "--bogus", "--dir", emptyDir);
+            var (exitCode, _, error) = RunCli("daemon", "start", "--bogus", "--path", emptyDir);
 
             Assert.That(exitCode, Is.EqualTo(2));
             Assert.That(error, Does.Contain("Unrecognized command or argument '--bogus'."));
@@ -255,7 +255,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithAssemblyGlob_FindsMatch()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -264,7 +264,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithNoMatch_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-symbol", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol named 'ThisSymbolDoesNotExistAnywhere' found."));
@@ -273,7 +273,7 @@ public class CliTests
     [Test]
     public void Run_Search_WithSubstring_FindsMatch()
     {
-        var (exitCode, output, _) = RunCli("search", "bjec", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("search", "bjec", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -282,7 +282,7 @@ public class CliTests
     [Test]
     public void Run_Search_IsCaseInsensitive()
     {
-        var (exitCode, output, _) = RunCli("search", "OBJECT", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("search", "OBJECT", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -291,7 +291,7 @@ public class CliTests
     [Test]
     public void Run_Search_WithNoMatch_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("search", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("search", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol containing 'ThisSymbolDoesNotExistAnywhere' found."));
@@ -300,7 +300,7 @@ public class CliTests
     [Test]
     public void Run_Search_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("search", "bjec", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("search", "bjec", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListSearchResultJson);
@@ -311,7 +311,7 @@ public class CliTests
     [Test]
     public void Run_Search_WithJsonAndNoMatch_PrintsEmptyArray()
     {
-        var (exitCode, output, _) = RunCli("search", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("search", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListSearchResultJson);
@@ -321,7 +321,7 @@ public class CliTests
     [Test]
     public void Run_Hover_WithMatch_PrintsSignature()
     {
-        var (exitCode, output, _) = RunCli("hover", "Object", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("hover", "Object", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -330,7 +330,7 @@ public class CliTests
     [Test]
     public void Run_Hover_WithNoMatch_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("hover", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("hover", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol named 'ThisSymbolDoesNotExistAnywhere' found."));
@@ -339,7 +339,7 @@ public class CliTests
     [Test]
     public void Run_GoToDefinition_WithMatch_PrintsLocationOrNoLocationMessage()
     {
-        var (exitCode, output, _) = RunCli("go-to-definition", "Object", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("go-to-definition", "Object", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object"));
@@ -349,7 +349,7 @@ public class CliTests
     [Test]
     public void Run_GoToDefinition_WithNoMatch_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("go-to-definition", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("go-to-definition", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol named 'ThisSymbolDoesNotExistAnywhere' found."));
@@ -358,7 +358,7 @@ public class CliTests
     [Test]
     public void Run_FindReferences_WithNoMatchingSymbol_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("find-references", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-references", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No symbol named 'ThisSymbolDoesNotExistAnywhere' found."));
@@ -371,7 +371,7 @@ public class CliTests
         // path (corelib itself) won't have IL call sites to it within corelib's own metadata scan
         // scope that this test cares about - instead assert the command runs to completion and
         // reports one of the two valid terminal messages without crashing.
-        var (exitCode, output, _) = RunCli("find-references", "Object", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("find-references", "Object", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Object").Or.Contain("No references found."));
@@ -380,7 +380,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("find-symbol", "Object", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListFindSymbolResultJson);
@@ -391,7 +391,7 @@ public class CliTests
     [Test]
     public void Run_FindSymbol_WithJsonAndNoMatch_PrintsEmptyArray()
     {
-        var (exitCode, output, _) = RunCli("find-symbol", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("find-symbol", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListFindSymbolResultJson);
@@ -401,7 +401,7 @@ public class CliTests
     [Test]
     public void Run_Hover_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("hover", "Object", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("hover", "Object", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListHoverResultJson);
@@ -412,7 +412,7 @@ public class CliTests
     [Test]
     public void Run_GoToDefinition_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("go-to-definition", "Object", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("go-to-definition", "Object", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListGoToDefinitionResultJson);
@@ -425,7 +425,7 @@ public class CliTests
     [Test]
     public void Run_FindReferences_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("find-references", "Object", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("find-references", "Object", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListFindReferenceResultJson);
@@ -435,7 +435,7 @@ public class CliTests
     [Test]
     public void Run_FindReferences_WithJsonAndNoMatchingSymbol_PrintsEmptyArray()
     {
-        var (exitCode, output, _) = RunCli("find-references", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("find-references", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListFindReferenceResultJson);
@@ -445,7 +445,7 @@ public class CliTests
     [Test]
     public void Run_ListMembers_WithMatch_PrintsMembers()
     {
-        var (exitCode, output, _) = RunCli("list-members", "Object", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("list-members", "Object", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("GetHashCode"));
@@ -454,7 +454,7 @@ public class CliTests
     [Test]
     public void Run_ListMembers_WithNoMatch_PrintsNotFound()
     {
-        var (exitCode, output, _) = RunCli("list-members", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("list-members", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No members found for type 'ThisSymbolDoesNotExistAnywhere'."));
@@ -463,7 +463,7 @@ public class CliTests
     [Test]
     public void Run_ListMembers_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("list-members", "Object", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("list-members", "Object", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListListMembersResultJson);
@@ -474,7 +474,7 @@ public class CliTests
     [Test]
     public void Run_Implementations_WithMatch_PrintsImplementers()
     {
-        var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("MemoryStream"));
@@ -486,7 +486,7 @@ public class CliTests
         // "ThisSymbolDoesNotExistAnywhere" isn't a type declared in the indexed assembly at all -
         // that's a different failure than "the type is indexed but nothing implements it", and
         // should say so instead of implying zero implementations exist.
-        var (exitCode, output, _) = RunCli("implementations", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("implementations", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("Type 'ThisSymbolDoesNotExistAnywhere' was not found in the indexed assemblies."));
@@ -508,7 +508,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Not.Contain("MemoryStream"));
@@ -533,7 +533,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir", "--include-framework-results");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir", "--include-framework-results");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("MemoryStream"));
@@ -558,7 +558,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("PrimaryDisposable"));
@@ -581,7 +581,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir", "--include-framework-results");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath, "--framework-dir", "--include-framework-results");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("PrimaryDisposable"));
@@ -599,7 +599,7 @@ public class CliTests
         var (interfaceDir, implementerDllPath) = CompileFixtureAcrossTwoDirectories();
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IMarker", "--assembly", implementerDllPath, "--framework-dir", interfaceDir);
+            var (exitCode, output, _) = RunCli("implementations", "IMarker", "--path", implementerDllPath, "--framework-dir", interfaceDir);
 
             Assert.That(exitCode, Is.EqualTo(0));
             // "IMarker"/"Instance" share no substring, unlike e.g. "IWidget"/"Widget" - a fix that
@@ -621,7 +621,7 @@ public class CliTests
         var dllPath = CompileFixtureWithoutCoreLib();
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath);
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--path", dllPath);
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("Type 'IDisposable' was not found in the indexed assemblies."));
@@ -640,7 +640,7 @@ public class CliTests
         try
         {
             var (exitCode, output, _) = RunCli(
-                "implementations", "IOtherMarker", "--assembly", implementerDllPath,
+                "implementations", "IOtherMarker", "--path", implementerDllPath,
                 "--framework-dir", interfaceDir,
                 "--framework-dir", looseFileDllPath);
 
@@ -802,7 +802,7 @@ public class CliTests
     {
         // "String" is sealed and indexed (it's declared in SomeRealAssemblyPath), so this
         // exercises "type resolved, zero implementers" as distinct from "type not indexed".
-        var (exitCode, output, _) = RunCli("implementations", "String", "--assembly", SomeRealAssemblyPath);
+        var (exitCode, output, _) = RunCli("implementations", "String", "--path", SomeRealAssemblyPath);
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(output, Does.Contain("No implementations of 'String' found."));
@@ -811,7 +811,7 @@ public class CliTests
     [Test]
     public void Run_Implementations_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("implementations", "ThisSymbolDoesNotExistAnywhere", "--assembly", SomeRealAssemblyPath, "--json");
+        var (exitCode, output, _) = RunCli("implementations", "ThisSymbolDoesNotExistAnywhere", "--path", SomeRealAssemblyPath, "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListImplementationsResultJson);
@@ -821,7 +821,7 @@ public class CliTests
     [Test]
     public void Run_ListAssemblies_PrintsLoadedAssembly()
     {
-        var (exitCode, output, _) = RunCli("list-assemblies", "--assembly", SomeRealAssemblyPath, "--no-daemon");
+        var (exitCode, output, _) = RunCli("list-assemblies", "--path", SomeRealAssemblyPath, "--no-daemon");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var assemblyName = System.Reflection.AssemblyName.GetAssemblyName(SomeRealAssemblyPath).Name;
@@ -831,7 +831,7 @@ public class CliTests
     [Test]
     public void Run_ListAssemblies_WithJson_PrintsJsonArray()
     {
-        var (exitCode, output, _) = RunCli("list-assemblies", "--assembly", SomeRealAssemblyPath, "--no-daemon", "--json");
+        var (exitCode, output, _) = RunCli("list-assemblies", "--path", SomeRealAssemblyPath, "--no-daemon", "--json");
 
         Assert.That(exitCode, Is.EqualTo(0));
         var results = JsonSerializer.Deserialize(output, CliOutputJsonContext.Default.ListListAssembliesResultJson);
@@ -847,7 +847,7 @@ public class CliTests
         Directory.CreateDirectory(emptyDir);
         try
         {
-            var (exitCode, output, error) = RunCli("find-symbol", "Foo", "--dir", emptyDir, "--json");
+            var (exitCode, output, error) = RunCli("find-symbol", "Foo", "--path", emptyDir, "--json");
 
             Assert.That(exitCode, Is.EqualTo(1));
             Assert.That(error, Does.Contain("No assemblies found"));
@@ -878,7 +878,7 @@ public class CliTests
         // than crashing with a raw stack trace.
         var cliAssemblyPath = typeof(Cli).Assembly.Location;
 
-        var (exitCode, _, error) = RunCli("go-to-definition", "Run", "--assembly", cliAssemblyPath, "--source-root", "\0bogus");
+        var (exitCode, _, error) = RunCli("go-to-definition", "Run", "--path", cliAssemblyPath, "--source-root", "\0bogus");
 
         Assert.That(exitCode, Is.EqualTo(1));
         Assert.That(error, Does.Contain("Error:"));

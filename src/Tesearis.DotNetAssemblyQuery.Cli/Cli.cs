@@ -6,8 +6,7 @@ internal sealed class CliOptions
 {
     public string Command { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
-    public List<string> AssemblyPaths { get; } = [];
-    public List<string> Directories { get; } = [];
+    public List<string> Paths { get; } = [];
     public string SourceRoot { get; set; } = Directory.GetCurrentDirectory();
     public bool NoDaemon { get; set; }
     public int? DaemonIdleTimeoutSeconds { get; set; }
@@ -51,7 +50,7 @@ public static class Cli
         List<string> dllPaths;
         try
         {
-            dllPaths = AssemblyLoading.DiscoverDllPaths(options.AssemblyPaths, options.Directories, out var discoveryWarnings);
+            dllPaths = AssemblyLoading.DiscoverDllPaths(options.Paths, out var discoveryWarnings);
             foreach (var warning in discoveryWarnings)
             {
                 Console.Error.WriteLine($"Warning: {warning}");
@@ -65,7 +64,7 @@ public static class Cli
 
         if (dllPaths.Count == 0)
         {
-            Console.Error.WriteLine("No assemblies found (use --assembly/--dir, or run from a directory containing .dll files).");
+            Console.Error.WriteLine("No assemblies found (use --path, or run from a directory containing .dll files).");
             return 1;
         }
 

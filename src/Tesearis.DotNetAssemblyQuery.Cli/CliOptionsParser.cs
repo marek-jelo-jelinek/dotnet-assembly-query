@@ -17,15 +17,10 @@ internal static class CliOptionsParser
         Description = "Symbol name to search for.",
     };
 
-    private static readonly Option<string[]> AssemblyOption = new("--assembly")
+    private static readonly Option<string[]> PathOption = new("--path")
     {
-        Description = "Assembly (.dll) to include (repeatable).",
-        AllowMultipleArgumentsPerToken = false,
-    };
-
-    private static readonly Option<string[]> DirOption = new("--dir")
-    {
-        Description = "Directory to scan for .dll files (repeatable).",
+        Description = "File (glob-capable) or directory to include (repeatable). A directory is " +
+            "scanned non-recursively for .dll files.",
         AllowMultipleArgumentsPerToken = false,
     };
 
@@ -64,7 +59,7 @@ internal static class CliOptionsParser
     {
         Description = "Include implementers declared only in --framework-dir-loaded assemblies in the " +
             "reported results. By default, --framework-dir assemblies are used only to resolve the " +
-            "target type and walk base-type/interface chains; only types from --assembly/--dir are " +
+            "target type and walk base-type/interface chains; only types from --path are " +
             "reported as implementers.",
     };
 
@@ -123,8 +118,7 @@ internal static class CliOptionsParser
     {
         var command = new Command(commandName, Describe(commandName));
         if (features.HasFlag(SubcommandFeatures.Name)) command.Arguments.Add(NameArgument);
-        command.Options.Add(AssemblyOption);
-        command.Options.Add(DirOption);
+        command.Options.Add(PathOption);
         command.Options.Add(SourceRootOption);
         command.Options.Add(NoDaemonOption);
         command.Options.Add(DaemonIdleTimeoutOption);
@@ -161,8 +155,7 @@ internal static class CliOptionsParser
                 IncludeFrameworkResults = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(IncludeFrameworkResultsOption),
                 Json = parseResult.GetValue(JsonOption),
             };
-            options.AssemblyPaths.AddRange(parseResult.GetValue(AssemblyOption) ?? []);
-            options.Directories.AddRange(parseResult.GetValue(DirOption) ?? []);
+            options.Paths.AddRange(parseResult.GetValue(PathOption) ?? []);
             return runQuery(options);
         });
 
@@ -178,23 +171,19 @@ internal static class CliOptionsParser
         status.SetAction(parseResult => DaemonControl.Status(parseResult.GetValue(JsonOption)));
 
         var stop = new Command("stop", "Stop matching daemon(s), or all daemons if no filter is given.");
-        stop.Options.Add(AssemblyOption);
-        stop.Options.Add(DirOption);
+        stop.Options.Add(PathOption);
         stop.Options.Add(JsonOption);
         stop.SetAction(parseResult => DaemonControl.Stop(
-            [.. parseResult.GetValue(AssemblyOption) ?? []],
-            [.. parseResult.GetValue(DirOption) ?? []],
+            [.. parseResult.GetValue(PathOption) ?? []],
             parseResult.GetValue(JsonOption)));
 
         var start = new Command("start", "Start a daemon for the given assemblies (or run it in the foreground).");
-        start.Options.Add(AssemblyOption);
-        start.Options.Add(DirOption);
+        start.Options.Add(PathOption);
         start.Options.Add(ForegroundOption);
         start.Options.Add(DaemonIdleTimeoutOption);
         start.Options.Add(JsonOption);
         start.SetAction(parseResult => DaemonControl.Start(
-            [.. parseResult.GetValue(AssemblyOption) ?? []],
-            [.. parseResult.GetValue(DirOption) ?? []],
+            [.. parseResult.GetValue(PathOption) ?? []],
             parseResult.GetValue(ForegroundOption),
             parseResult.GetValue(DaemonIdleTimeoutOption),
             parseResult.GetValue(JsonOption),

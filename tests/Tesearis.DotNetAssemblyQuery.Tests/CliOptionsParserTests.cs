@@ -46,8 +46,7 @@ public class CliOptionsParserTests
         Assert.That(errors, Is.Empty);
         Assert.That(_parsedOptions!.Command, Is.EqualTo("find-symbol"));
         Assert.That(_parsedOptions.Name, Is.EqualTo("Foo"));
-        Assert.That(_parsedOptions.AssemblyPaths, Is.Empty);
-        Assert.That(_parsedOptions.Directories, Is.Empty);
+        Assert.That(_parsedOptions.Paths, Is.Empty);
         Assert.That(_parsedOptions.SourceRoot, Is.EqualTo(Directory.GetCurrentDirectory()));
         Assert.That(_parsedOptions.NoDaemon, Is.False);
         Assert.That(_parsedOptions.DaemonIdleTimeoutSeconds, Is.Null);
@@ -64,22 +63,21 @@ public class CliOptionsParserTests
     }
 
     [Test]
-    public void ParsesRepeatedAssemblyAndDirFlags()
+    public void ParsesRepeatedPathFlags()
     {
-        var (exitCode, _) = Parse("find-symbol", "Foo", "--assembly", "a.dll", "--assembly", "b.dll", "--dir", "d1", "--dir", "d2");
+        var (exitCode, _) = Parse("find-symbol", "Foo", "--path", "a.dll", "--path", "b.dll", "--path", "d1", "--path", "d2");
 
         Assert.That(exitCode, Is.EqualTo(0));
-        Assert.That(_parsedOptions!.AssemblyPaths, Is.EqualTo(new[] { "a.dll", "b.dll" }));
-        Assert.That(_parsedOptions.Directories, Is.EqualTo(new[] { "d1", "d2" }));
+        Assert.That(_parsedOptions!.Paths, Is.EqualTo(new[] { "a.dll", "b.dll", "d1", "d2" }));
     }
 
     [Test]
-    public void ParsesAssemblyFlagsWithEqualsSyntax()
+    public void ParsesPathFlagsWithEqualsSyntax()
     {
-        var (exitCode, _) = Parse("find-symbol", "Foo", "--assembly=a.dll", "--assembly=b.dll");
+        var (exitCode, _) = Parse("find-symbol", "Foo", "--path=a.dll", "--path=b.dll");
 
         Assert.That(exitCode, Is.EqualTo(0));
-        Assert.That(_parsedOptions!.AssemblyPaths, Is.EqualTo(new[] { "a.dll", "b.dll" }));
+        Assert.That(_parsedOptions!.Paths, Is.EqualTo(new[] { "a.dll", "b.dll" }));
     }
 
     [Test]
@@ -145,12 +143,12 @@ public class CliOptionsParserTests
     }
 
     [Test]
-    public void FailsWhenAssemblyFlagMissingValue()
+    public void FailsWhenPathFlagMissingValue()
     {
-        var (exitCode, errors) = Parse("find-symbol", "Foo", "--assembly");
+        var (exitCode, errors) = Parse("find-symbol", "Foo", "--path");
 
         Assert.That(exitCode, Is.EqualTo(2));
-        Assert.That(errors, Does.Contain("Required argument missing for option: '--assembly'."));
+        Assert.That(errors, Does.Contain("Required argument missing for option: '--path'."));
         Assert.That(_parsedOptions, Is.Null);
     }
 
@@ -290,7 +288,7 @@ public class CliOptionsParserTests
     [Test]
     public void WithoutFrameworkDir_FrameworkPathsStaysNull()
     {
-        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll");
+        var (exitCode, _) = Parse("implementations", "Foo", "--path", "a.dll");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.FrameworkPaths, Is.Null);
@@ -302,7 +300,7 @@ public class CliOptionsParserTests
         // Bare --framework-dir (last token, no value) must still parse - System.CommandLine
         // ArgumentArity.ZeroOrMore lets an occurrence carry zero values - and be distinguishable
         // from the flag being absent entirely (asserted by WithoutFrameworkDir_FrameworkPathsStaysNull).
-        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll", "--framework-dir");
+        var (exitCode, _) = Parse("implementations", "Foo", "--path", "a.dll", "--framework-dir");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.FrameworkPaths, Is.Not.Null);
@@ -313,7 +311,7 @@ public class CliOptionsParserTests
     public void ParsesBareFrameworkDir_ImmediatelyFollowedByAnotherFlag()
     {
         // Proves a bare --framework-dir mid-argument-list doesn't swallow the next flag as its value.
-        var (exitCode, _) = Parse("implementations", "Foo", "--framework-dir", "--json", "--assembly", "a.dll");
+        var (exitCode, _) = Parse("implementations", "Foo", "--framework-dir", "--json", "--path", "a.dll");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.FrameworkPaths, Is.Empty);
@@ -323,7 +321,7 @@ public class CliOptionsParserTests
     [Test]
     public void ParsesFrameworkDir_WithOneValue()
     {
-        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll", "--framework-dir", "some/dir");
+        var (exitCode, _) = Parse("implementations", "Foo", "--path", "a.dll", "--framework-dir", "some/dir");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.FrameworkPaths, Is.EqualTo(new[] { "some/dir" }));
@@ -344,7 +342,7 @@ public class CliOptionsParserTests
     [Test]
     public void WithoutIncludeFrameworkResults_DefaultsFalse()
     {
-        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll");
+        var (exitCode, _) = Parse("implementations", "Foo", "--path", "a.dll");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.IncludeFrameworkResults, Is.False);
@@ -353,7 +351,7 @@ public class CliOptionsParserTests
     [Test]
     public void ParsesIncludeFrameworkResults_WhenPassed()
     {
-        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll", "--framework-dir", "--include-framework-results");
+        var (exitCode, _) = Parse("implementations", "Foo", "--path", "a.dll", "--framework-dir", "--include-framework-results");
 
         Assert.That(exitCode, Is.EqualTo(0));
         Assert.That(_parsedOptions!.IncludeFrameworkResults, Is.True);
@@ -362,7 +360,7 @@ public class CliOptionsParserTests
     [Test]
     public void IncludeFrameworkResultsIsRejectedOnSubcommandsWithoutAutoFramework()
     {
-        var (exitCode, errors) = Parse("find-symbol", "Foo", "--assembly", "a.dll", "--include-framework-results");
+        var (exitCode, errors) = Parse("find-symbol", "Foo", "--path", "a.dll", "--include-framework-results");
 
         Assert.That(exitCode, Is.EqualTo(2));
         Assert.That(errors, Does.Contain("Unrecognized command or argument '--include-framework-results'."));

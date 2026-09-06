@@ -11,12 +11,13 @@ to grep for non-symbol text (comments, string literals, config files, non-.NET c
 
 ## Pointing it at the build output
 
-Every query command takes repeatable `--assembly <path>` (glob-capable) and/or `--dir <path>`
-(non-recursive `*.dll` scan); with neither, it falls back to the current directory.
-`--source-root <path>` controls how resolved source paths are relativized (default: cwd).
+Every query command takes a repeatable `--path <path>` that auto-detects each entry: a
+directory is scanned non-recursively for `*.dll`, anything else is resolved as an exact file or
+glob pattern; with no `--path`, it falls back to the current directory. `--source-root <path>`
+controls how resolved source paths are relativized (default: cwd).
 
 ```
-daq find-symbol MyClass --dir ./bin/Debug/net8.0
+daq find-symbol MyClass --path ./bin/Debug/net8.0
 ```
 
 ## Command cheatsheet
@@ -39,12 +40,12 @@ Narrow ambiguous matches (any query command except `list-assemblies`; `implement
 (`--framework-dir` with no value) discovers and loads the local machine's matching `Microsoft.NETCore.App` shared framework instead of
 requiring you to index it manually. Given one or more values, each is a directory or an explicit file path - mix freely. By default,
 `--framework-dir` assemblies are reference-only: they help resolve the target type, but types declared only there aren't reported as
-implementers (so results stay limited to your own `--assembly`/`--dir` types instead of every matching BCL type). Pass
+implementers (so results stay limited to your own `--path` types instead of every matching BCL type). Pass
 `--include-framework-results` to include framework-declared implementers too.
 
 ## Background daemon
 
-By default, the first query against a given `--assembly`/`--dir` set spawns a background daemon that later queries against the same set reuse instead
+By default, the first query against a given `--path` set spawns a background daemon that later queries against the same set reuse instead
 of reloading everything. Pass `--no-daemon` to skip it for a call (e.g. in CI). See `daemon.md` for details and the `daemon status|stop|start`
 commands.
 
