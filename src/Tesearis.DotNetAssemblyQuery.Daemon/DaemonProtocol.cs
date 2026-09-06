@@ -13,7 +13,7 @@ namespace Tesearis.DotNetAssemblyQuery;
 public static class DaemonProtocolVersion
 {
     /// <summary>The current protocol version number.</summary>
-    public const int Current = 1;
+    public const int Current = 2;
 }
 
 /// <summary>A query request sent from a <see cref="DaemonClient"/> to a warm <see cref="DaemonHost"/>.</summary>
