@@ -5,7 +5,7 @@ namespace Tesearis.DotNetAssemblyQuery;
 /// <summary>The client half of the daemon protocol: connect-with-timeout, send a request, replay the response.</summary>
 public static class DaemonClient
 {
-    private const int ConnectTimeoutMilliseconds = 200;
+    private const int ConnectTimeoutMilliseconds = 750;
 
     /// <summary>
     /// Tries to serve <paramref name="request"/> via a warm daemon for its <see cref="DaemonRequest.DllPaths"/>.
