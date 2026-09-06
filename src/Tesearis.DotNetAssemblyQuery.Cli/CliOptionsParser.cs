@@ -50,10 +50,14 @@ internal static class CliOptionsParser
         Description = "Run the daemon in the foreground instead of detaching.",
     };
 
-    private static readonly Option<bool> AutoFrameworkOption = new("--auto-framework")
+    private static readonly Option<string[]> FrameworkDirOption = new("--framework-dir")
     {
-        Description = "If the target type isn't indexed, discover and load the local machine's " +
-            "matching .NET shared framework (Microsoft.NETCore.App) to resolve it.",
+        Description = "If the target type isn't indexed, discover and load extra types to resolve it " +
+            "(repeatable). Bare (no value): auto-discover the local machine's matching .NET shared " +
+            "framework (Microsoft.NETCore.App). With one or more values: each value is a directory " +
+            "or an explicit file path - mix freely.",
+        Arity = ArgumentArity.ZeroOrMore,
+        AllowMultipleArgumentsPerToken = false,
     };
 
     private static readonly Option<int?> DaemonIdleTimeoutOption = BuildDaemonIdleTimeoutOption();
@@ -123,7 +127,10 @@ internal static class CliOptionsParser
             command.Options.Add(AssemblyNameOption);
         }
 
-        if (features.HasFlag(SubcommandFeatures.AutoFramework)) command.Options.Add(AutoFrameworkOption);
+        if (features.HasFlag(SubcommandFeatures.AutoFramework))
+        {
+            command.Options.Add(FrameworkDirOption);
+        }
 
         command.Options.Add(JsonOption);
 
@@ -139,7 +146,9 @@ internal static class CliOptionsParser
                 Kind = features.HasFlag(SubcommandFeatures.Kind) ? parseResult.GetValue(KindOption) : null,
                 Namespace = features.HasFlag(SubcommandFeatures.Filters) ? parseResult.GetValue(NamespaceOption) : null,
                 AssemblyName = features.HasFlag(SubcommandFeatures.Filters) ? parseResult.GetValue(AssemblyNameOption) : null,
-                AutoFramework = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetValue(AutoFrameworkOption),
+                FrameworkPaths = features.HasFlag(SubcommandFeatures.AutoFramework) && parseResult.GetResult(FrameworkDirOption) != null
+                    ? [.. parseResult.GetValue(FrameworkDirOption) ?? []]
+                    : null,
                 Json = parseResult.GetValue(JsonOption),
             };
             options.AssemblyPaths.AddRange(parseResult.GetValue(AssemblyOption) ?? []);

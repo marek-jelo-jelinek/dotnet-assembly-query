@@ -35,8 +35,9 @@ daq find-symbol MyClass --dir ./bin/Debug/net8.0
 Narrow ambiguous matches (any query command except `list-assemblies`; `implementations` skips
 `--kind`): `--kind type|method|field|property`, `--namespace <ns>`, `--assembly-name <name>`.
 
-`implementations --auto-framework`: if the target interface/base type isn't indexed, discovers and loads the local machine's matching
-`Microsoft.NETCore.App` shared framework instead of requiring you to index it manually (e.g. `System.Private.CoreLib.dll` for `IDisposable`).
+`implementations --framework-dir` (repeatable): if the target interface/base type isn't indexed, resolves it from extra types. Bare
+(`--framework-dir` with no value) discovers and loads the local machine's matching `Microsoft.NETCore.App` shared framework instead of
+requiring you to index it manually. Given one or more values, each is a directory or an explicit file path - mix freely.
 
 ## Background daemon
 

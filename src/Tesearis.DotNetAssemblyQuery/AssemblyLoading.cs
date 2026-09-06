@@ -184,14 +184,28 @@ public static class AssemblyLoading
     }
 
     /// <summary>
-    /// Loads each DLL as a Mono.Cecil module, using its PDB when present. Failed loads are
-    /// reported in <paramref name="warnings"/>. Callers must dispose the returned modules.
+    /// Loads each DLL as a Mono.Cecil module, using its PDB when present, with a fresh resolver
+    /// scoped only to <paramref name="dllPaths"/>' own directories. Failed loads are reported in
+    /// <paramref name="warnings"/>. Callers must dispose the returned modules.
     /// </summary>
     public static List<ModuleDefinition> LoadModules(IReadOnlyList<string> dllPaths, out List<string> warnings)
     {
+        return LoadModules(dllPaths, new DefaultAssemblyResolver(), out warnings);
+    }
+
+    /// <summary>
+    /// Like <see cref="LoadModules(IReadOnlyList{string}, out List{string})"/>, but adds
+    /// <paramref name="dllPaths"/>' directories to <paramref name="resolver"/> instead of a
+    /// fresh one. Pass the same resolver instance across multiple calls (e.g. the user's
+    /// assemblies plus a separately-loaded framework/reference set) so a type in one set can
+    /// resolve a reference into the other - Cecil resolves lazily, so this works regardless of
+    /// which set is loaded first, as long as both calls happen before anything calls
+    /// <c>TypeReference.Resolve()</c>.
+    /// </summary>
+    public static List<ModuleDefinition> LoadModules(IReadOnlyList<string> dllPaths, DefaultAssemblyResolver resolver, out List<string> warnings)
+    {
         warnings = [];
 
-        var resolver = new DefaultAssemblyResolver();
         var searchDirectories = new HashSet<string>();
         foreach (var dllPath in dllPaths)
         {

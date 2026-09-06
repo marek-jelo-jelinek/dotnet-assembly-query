@@ -14,7 +14,7 @@ internal sealed class CliOptions
     public string? Kind { get; init; }
     public string? Namespace { get; init; }
     public string? AssemblyName { get; init; }
-    public bool AutoFramework { get; init; }
+    public List<string>? FrameworkPaths { get; init; }
     public bool Json { get; init; }
 }
 
@@ -70,7 +70,16 @@ public static class Cli
 
         if (!options.NoDaemon)
         {
-            var request = new DaemonRequest(options.Command, options.Name, options.SourceRoot, dllPaths, options.Kind, options.Namespace, options.AssemblyName, options.AutoFramework, options.Json);
+            var request = new DaemonRequest(
+                Command: options.Command,
+                Name: options.Name,
+                SourceRoot: options.SourceRoot,
+                DllPaths: dllPaths,
+                Kind: options.Kind,
+                Namespace: options.Namespace,
+                AssemblyName: options.AssemblyName,
+                Json: options.Json,
+                FrameworkPaths: options.FrameworkPaths);
             if (DaemonClient.TryRun(request, out var daemonExitCode))
             {
                 return daemonExitCode;
@@ -79,10 +88,14 @@ public static class Cli
 
         var modules = new List<ModuleDefinition>();
         var frameworkModules = new List<ModuleDefinition>();
+        // Shared across the modules load below and LoadAutoFrameworkTypes' separate load, so a
+        // user type's reference into the framework/override set (or vice versa) can resolve -
+        // see AssemblyLoading.LoadModules(IReadOnlyList{string}, DefaultAssemblyResolver, out List{string}).
+        var resolver = new DefaultAssemblyResolver();
         int exitCode;
         try
         {
-            modules.AddRange(AssemblyLoading.LoadModules(dllPaths, out var loadWarnings));
+            modules.AddRange(AssemblyLoading.LoadModules(dllPaths, resolver, out var loadWarnings));
             foreach (var warning in loadWarnings)
             {
                 Console.Error.WriteLine($"Warning: {warning}");
@@ -94,14 +107,27 @@ public static class Cli
                 allTypes.AddRange(module.GetTypes());
             }
 
-            // One-shot (no daemon to cache across calls): load the local shared framework's
-            // types only if implementations --auto-framework actually needs them.
+            // One-shot (no daemon to cache across calls): load the framework/override directory's
+            // types only if implementations --framework-dir actually needs them.
             List<TypeDefinition> LoadAutoFrameworkTypes()
             {
-                if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var frameworkDir) || frameworkDir == null) return [];
+                List<string> entries;
+                if (options.FrameworkPaths is { Count: > 0 })
+                {
+                    entries = options.FrameworkPaths;
+                }
+                else
+                {
+                    if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var frameworkDir) || frameworkDir == null)
+                    {
+                        return [];
+                    }
 
-                var paths = FrameworkDiscovery.DiscoverAssemblyPaths(frameworkDir);
-                frameworkModules.AddRange(AssemblyLoading.LoadModules(paths));
+                    entries = [frameworkDir];
+                }
+
+                var paths = FrameworkDiscovery.ResolveAssemblyPaths(entries);
+                frameworkModules.AddRange(AssemblyLoading.LoadModules(paths, resolver, out _));
 
                 var types = new List<TypeDefinition>();
                 foreach (var module in frameworkModules)
@@ -112,7 +138,7 @@ public static class Cli
                 return types;
             }
 
-            exitCode = CliDispatch.Dispatch(options, modules, allTypes, LoadAutoFrameworkTypes);
+            exitCode = CliDispatch.Dispatch(options, modules, allTypes, options.FrameworkPaths != null ? LoadAutoFrameworkTypes : null);
         }
         catch (Exception ex)
         {
@@ -163,7 +189,6 @@ public static class Cli
             Kind = request.Kind,
             Namespace = request.Namespace,
             AssemblyName = request.AssemblyName,
-            AutoFramework = request.AutoFramework,
             Json = request.Json,
         };
         return CliDispatch.Dispatch(options, modules, allTypes, autoFrameworkTypes);

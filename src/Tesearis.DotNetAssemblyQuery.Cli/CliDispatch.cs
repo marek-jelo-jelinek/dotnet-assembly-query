@@ -23,7 +23,7 @@ internal static class CliDispatch
                 "go-to-definition" => PrintGoToDefinition(allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "find-references" => PrintFindReferences(modules, allTypes, options.Name, options.SourceRoot, options.Kind, options.Namespace, options.AssemblyName, options.Json),
                 "list-members" => PrintListMembers(allTypes, options.Name, options.Kind, options.Namespace, options.AssemblyName, options.Json),
-                "implementations" => PrintImplementations(allTypes, options.Name, options.Namespace, options.AssemblyName, options.Json, options.AutoFramework ? autoFrameworkTypes : null),
+                "implementations" => PrintImplementations(allTypes, options.Name, options.Namespace, options.AssemblyName, options.Json, autoFrameworkTypes),
                 "list-assemblies" => PrintListAssemblies(modules, options.Json),
                 _ => UnknownCommand(options.Command),
             };
@@ -248,8 +248,8 @@ internal static class CliDispatch
         if (!targetExists)
         {
             var hint = autoFrameworkAttempted
-                ? $"Type '{name}' was not found in the indexed assemblies, and --auto-framework couldn't locate/resolve it in the local .NET shared framework either."
-                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --assembly or --dir), or retry with --auto-framework.";
+                ? $"Type '{name}' was not found in the indexed assemblies, and --framework-dir couldn't locate/resolve it either."
+                : $"Type '{name}' was not found in the indexed assemblies. If it's a framework/BCL type (e.g. IDisposable), index its defining assembly too (e.g. add System.Private.CoreLib.dll via --assembly or --dir), or retry with --framework-dir (bare, to auto-discover the local .NET shared framework, or with a directory/file path for a non-dotnet-SDK framework).";
             Console.WriteLine(hint);
             return 0;
         }

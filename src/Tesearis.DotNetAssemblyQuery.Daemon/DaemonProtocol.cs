@@ -17,7 +17,7 @@ public static class DaemonProtocolVersion
 }
 
 /// <summary>A query request sent from a <see cref="DaemonClient"/> to a warm <see cref="DaemonHost"/>.</summary>
-public sealed record DaemonRequest(string Command, string Name, string SourceRoot, List<string> DllPaths, string? Kind = null, string? Namespace = null, string? AssemblyName = null, bool AutoFramework = false, bool Json = false);
+public sealed record DaemonRequest(string Command, string Name, string SourceRoot, List<string> DllPaths, string? Kind = null, string? Namespace = null, string? AssemblyName = null, bool Json = false, List<string>? FrameworkPaths = null);
 
 /// <summary>The full buffered result of dispatching a <see cref="DaemonRequest"/>.</summary>
 public sealed record DaemonResponse(int ExitCode, string Stdout, string Stderr);
@@ -29,7 +29,7 @@ public sealed record DaemonResponse(int ExitCode, string Stdout, string Stderr);
 /// project (the CLI, or another front end embedding this daemon) supplies its own dispatch,
 /// typically by adapting <see cref="DaemonRequest"/>'s fields into that project's own options
 /// type. <paramref name="autoFrameworkTypes"/> is <see cref="DaemonHost"/>'s lazily-populated,
-/// process-lifetime-cached extra-types provider for <see cref="DaemonRequest.AutoFramework"/> -
+/// process-lifetime-cached extra-types provider for <see cref="DaemonRequest.FrameworkPaths"/> -
 /// see <see cref="DaemonHost"/>.
 /// </summary>
 public delegate int DaemonDispatch(DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes);

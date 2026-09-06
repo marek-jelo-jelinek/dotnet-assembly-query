@@ -286,4 +286,58 @@ public class CliOptionsParserTests
         Assert.That(exitCode, Is.EqualTo(2));
         Assert.That(errors, Does.Contain("Unrecognized command or argument '--bogus'."));
     }
+
+    [Test]
+    public void WithoutFrameworkDir_FrameworkPathsStaysNull()
+    {
+        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.FrameworkPaths, Is.Null);
+    }
+
+    [Test]
+    public void ParsesBareFrameworkDir_AsEmptyPathsList()
+    {
+        // Bare --framework-dir (last token, no value) must still parse - System.CommandLine
+        // ArgumentArity.ZeroOrMore lets an occurrence carry zero values - and be distinguishable
+        // from the flag being absent entirely (asserted by WithoutFrameworkDir_FrameworkPathsStaysNull).
+        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll", "--framework-dir");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.FrameworkPaths, Is.Not.Null);
+        Assert.That(_parsedOptions.FrameworkPaths, Is.Empty);
+    }
+
+    [Test]
+    public void ParsesBareFrameworkDir_ImmediatelyFollowedByAnotherFlag()
+    {
+        // Proves a bare --framework-dir mid-argument-list doesn't swallow the next flag as its value.
+        var (exitCode, _) = Parse("implementations", "Foo", "--framework-dir", "--json", "--assembly", "a.dll");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.FrameworkPaths, Is.Empty);
+        Assert.That(_parsedOptions.Json, Is.True);
+    }
+
+    [Test]
+    public void ParsesFrameworkDir_WithOneValue()
+    {
+        var (exitCode, _) = Parse("implementations", "Foo", "--assembly", "a.dll", "--framework-dir", "some/dir");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.FrameworkPaths, Is.EqualTo(new[] { "some/dir" }));
+    }
+
+    [Test]
+    public void ParsesFrameworkDir_WithMultipleRepeatedOccurrences_PreservesOrder()
+    {
+        // Mixing directory-looking and file-looking values here is deliberate - the parser itself
+        // doesn't classify entries (FrameworkDiscovery.ResolveAssemblyPaths does that later), it
+        // just accumulates values in the order given.
+        var (exitCode, _) = Parse("implementations", "Foo", "--framework-dir", "dir-a", "--framework-dir", "file-b.dll", "--framework-dir", "dir-c");
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(_parsedOptions!.FrameworkPaths, Is.EqualTo(new[] { "dir-a", "file-b.dll", "dir-c" }));
+    }
 }

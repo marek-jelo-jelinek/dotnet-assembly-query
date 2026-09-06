@@ -7,7 +7,9 @@ namespace Tesearis.DotNetAssemblyQuery;
 /// Locates the local machine's installed <c>Microsoft.NETCore.App</c> shared-framework
 /// directory that best matches an already-loaded set of modules, so BCL types (e.g.
 /// <c>IDisposable</c>) can be resolved without the user manually pointing <c>--assembly</c>/
-/// <c>--dir</c> at <c>System.Private.CoreLib.dll</c>. Used by <c>implementations --auto-framework</c>.
+/// <c>--dir</c> at <c>System.Private.CoreLib.dll</c>. Used by a bare <c>implementations
+/// --framework-dir</c>; <see cref="ResolveAssemblyPaths"/> also serves the explicit
+/// directory/file-list form of that same option.
 /// </summary>
 public static partial class FrameworkDiscovery
 {
@@ -67,15 +69,32 @@ public static partial class FrameworkDiscovery
         return installed.OrderByDescending(entry => entry.Version).First().Dir;
     }
 
-    /// <summary>Managed assembly paths directly under <paramref name="frameworkDirectory"/>.</summary>
-    public static List<string> DiscoverAssemblyPaths(string frameworkDirectory)
+    /// <summary>
+    /// Resolves assembly paths from a mixed list of directory and file entries: a directory entry
+    /// is scanned non-recursively for managed .dll files (same filtering as
+    /// <see cref="AssemblyLoading.DiscoverDllPaths"/>'s --dir handling); a file entry (anything
+    /// that isn't an existing directory) is added directly, unfiltered - matching that same
+    /// method's --assembly convention that an explicitly-named file bypasses the managed/native
+    /// filter a directory scan applies.
+    /// </summary>
+    public static List<string> ResolveAssemblyPaths(IReadOnlyList<string> entries)
     {
         var paths = new List<string>();
-        foreach (var dllPath in Directory.GetFiles(frameworkDirectory, "*.dll"))
+        foreach (var entry in entries)
         {
-            if (ManagedAssemblyDetection.IsManagedAssembly(dllPath))
+            if (Directory.Exists(entry))
             {
-                paths.Add(dllPath);
+                foreach (var dllPath in Directory.GetFiles(entry, "*.dll"))
+                {
+                    if (ManagedAssemblyDetection.IsManagedAssembly(dllPath))
+                    {
+                        paths.Add(dllPath);
+                    }
+                }
+            }
+            else
+            {
+                paths.Add(entry);
             }
         }
 

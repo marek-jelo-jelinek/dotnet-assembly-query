@@ -493,11 +493,11 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithAutoFramework_ResolvesFrameworkType()
+    public void Run_Implementations_WithBareFrameworkDir_ResolvesFrameworkType()
     {
         // Unlike the tests above, this fixture's own directory does NOT contain
-        // System.Private.CoreLib.dll - only --auto-framework's discovery of the local shared
-        // framework can make IDisposable resolvable here.
+        // System.Private.CoreLib.dll - only a bare --framework-dir's auto-discovery of the local
+        // shared framework can make IDisposable resolvable here.
         var dllPath = CompileFixtureWithoutCoreLib();
         if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory([], out _))
         {
@@ -506,7 +506,7 @@ public class CliTests
 
         try
         {
-            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--auto-framework");
+            var (exitCode, output, _) = RunCli("implementations", "IDisposable", "--assembly", dllPath, "--framework-dir");
 
             Assert.That(exitCode, Is.EqualTo(0));
             Assert.That(output, Does.Contain("MemoryStream"));
@@ -518,7 +518,28 @@ public class CliTests
     }
 
     [Test]
-    public void Run_Implementations_WithTypeNotIndexed_WithoutAutoFramework_StillJustHints()
+    public void Run_Implementations_WithFrameworkDir_ResolvesAcrossSeparateDirectories()
+    {
+        var (interfaceDir, implementerDllPath) = CompileFixtureAcrossTwoDirectories();
+        try
+        {
+            var (exitCode, output, _) = RunCli("implementations", "IMarker", "--assembly", implementerDllPath, "--framework-dir", interfaceDir);
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            // "IMarker"/"Instance" share no substring, unlike e.g. "IWidget"/"Widget" - a fix that
+            // silently found nothing would print "No implementations of 'IMarker' found." here,
+            // which this assertion must not accidentally satisfy.
+            Assert.That(output, Does.Contain("Instance"));
+        }
+        finally
+        {
+            Directory.Delete(interfaceDir, recursive: true);
+            Directory.Delete(Path.GetDirectoryName(implementerDllPath)!, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Run_Implementations_WithTypeNotIndexed_WithoutFrameworkDir_StillJustHints()
     {
         // Same fixture as above, but without the flag - the hint fires, no framework scan happens.
         var dllPath = CompileFixtureWithoutCoreLib();
@@ -533,6 +554,30 @@ public class CliTests
         finally
         {
             Directory.Delete(Path.GetDirectoryName(dllPath)!, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Run_Implementations_WithMixedDirectoryAndFileFrameworkDir_ResolvesBoth()
+    {
+        var (interfaceDir, looseFileDllPath, implementerDllPath) = CompileFixtureAcrossADirectoryAndALooseFile();
+        try
+        {
+            var (exitCode, output, _) = RunCli(
+                "implementations", "IOtherMarker", "--assembly", implementerDllPath,
+                "--framework-dir", interfaceDir,
+                "--framework-dir", looseFileDllPath);
+
+            Assert.That(exitCode, Is.EqualTo(0));
+            // IOtherMarker is only resolvable via the loose-file entry; the unrelated directory
+            // entry is included alongside it to prove the mixed list doesn't confuse resolution.
+            Assert.That(output, Does.Contain("Instance"));
+        }
+        finally
+        {
+            Directory.Delete(interfaceDir, recursive: true);
+            Directory.Delete(Path.GetDirectoryName(looseFileDllPath)!, recursive: true);
+            Directory.Delete(Path.GetDirectoryName(implementerDllPath)!, recursive: true);
         }
     }
 
@@ -570,6 +615,74 @@ public class CliTests
         Assert.That(emitResult.Success, Is.True, string.Join("\n", emitResult.Diagnostics));
 
         return dllPath;
+    }
+    
+    private static (string InterfaceDir, string ImplementerDllPath) CompileFixtureAcrossTwoDirectories()
+    {
+        var interfaceDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-iface-" + Guid.NewGuid());
+        Directory.CreateDirectory(interfaceDir);
+        var interfaceDllPath = Path.Combine(interfaceDir, "Fixture.Interface.dll");
+        CompileToFile("namespace Fixture { public interface IMarker { } }", "Fixture.Interface", interfaceDllPath, AllLoadedAssemblyReferences());
+
+        var implementerDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-impl-" + Guid.NewGuid());
+        Directory.CreateDirectory(implementerDir);
+        var implementerDllPath = Path.Combine(implementerDir, "Fixture.Implementer.dll");
+        var references = AllLoadedAssemblyReferences();
+        references.Add(MetadataReference.CreateFromFile(interfaceDllPath));
+        CompileToFile("namespace Fixture { public class Instance : IMarker { } }", "Fixture.Implementer", implementerDllPath, references);
+
+        return (interfaceDir, implementerDllPath);
+    }
+
+    private static (string InterfaceDir, string LooseFileDllPath, string ImplementerDllPath) CompileFixtureAcrossADirectoryAndALooseFile()
+    {
+        var interfaceDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-iface-" + Guid.NewGuid());
+        Directory.CreateDirectory(interfaceDir);
+        var interfaceDllPath = Path.Combine(interfaceDir, "Fixture.Interface.dll");
+        CompileToFile("namespace Fixture { public interface IMarker { } }", "Fixture.Interface", interfaceDllPath, AllLoadedAssemblyReferences());
+
+        var looseFileDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-loose-" + Guid.NewGuid());
+        Directory.CreateDirectory(looseFileDir);
+        var looseFileDllPath = Path.Combine(looseFileDir, "Fixture.LooseFile.dll");
+        CompileToFile("namespace Fixture { public interface IOtherMarker { } }", "Fixture.LooseFile", looseFileDllPath, AllLoadedAssemblyReferences());
+
+        var implementerDir = Path.Combine(Path.GetTempPath(), "daq-cli-tests-impl-" + Guid.NewGuid());
+        Directory.CreateDirectory(implementerDir);
+        var implementerDllPath = Path.Combine(implementerDir, "Fixture.Implementer.dll");
+        var references = AllLoadedAssemblyReferences();
+        references.Add(MetadataReference.CreateFromFile(interfaceDllPath));
+        references.Add(MetadataReference.CreateFromFile(looseFileDllPath));
+        CompileToFile("namespace Fixture { public class Instance : IMarker, IOtherMarker { } }", "Fixture.Implementer", implementerDllPath, references);
+
+        return (interfaceDir, looseFileDllPath, implementerDllPath);
+    }
+
+    private static List<MetadataReference> AllLoadedAssemblyReferences()
+    {
+        var references = new List<MetadataReference>();
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
+            {
+                references.Add(MetadataReference.CreateFromFile(assembly.Location));
+            }
+        }
+
+        return references;
+    }
+
+    private static void CompileToFile(string source, string assemblyName, string dllPath, List<MetadataReference> references)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+        var compilation = CSharpCompilation.Create(
+            assemblyName,
+            [syntaxTree],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var dllStream = File.Create(dllPath);
+        var emitResult = compilation.Emit(dllStream, options: new EmitOptions());
+        Assert.That(emitResult.Success, Is.True, string.Join("\n", emitResult.Diagnostics));
     }
 
     [Test]

@@ -117,7 +117,8 @@ public static class DaemonHost
     }
 
     /// <summary>Handles exactly one request. Returns false when the daemon should stop serving after this connection.</summary>
-    private static bool HandleConnection(NamedPipeServerStream server, List<string> dllPaths, List<ModuleDefinition> modules, Dictionary<string, DllFingerprint> fingerprints, DaemonDispatch dispatch, FrameworkCache frameworkCache)
+    private static bool HandleConnection(NamedPipeServerStream server, List<string> dllPaths, List<ModuleDefinition> modules,
+        Dictionary<string, DllFingerprint> fingerprints, DaemonDispatch dispatch, FrameworkCache frameworkCache)
     {
         try
         {
@@ -162,9 +163,10 @@ public static class DaemonHost
                 allTypes.AddRange(module.GetTypes());
             }
 
-            List<TypeDefinition> AutoFrameworkTypes() => GetOrLoadFrameworkTypes(modules, frameworkCache);
+            List<TypeDefinition> AutoFrameworkTypes() => GetOrLoadFrameworkTypes(modules, request.FrameworkPaths, frameworkCache);
 
-            var (exitCode, stdout, stderr) = RunDispatchCapturingOutput(dispatch, request, modules, allTypes, request.AutoFramework ? AutoFrameworkTypes : null);
+            var (exitCode, stdout, stderr) = RunDispatchCapturingOutput(dispatch, request, modules, allTypes,
+                request.FrameworkPaths != null ? AutoFrameworkTypes : null);
 
             PipeFraming.WriteJson(server, new DaemonResponse(exitCode, stdout, stderr), DaemonJsonContext.Default.DaemonResponse);
             return true;
@@ -177,29 +179,97 @@ public static class DaemonHost
         }
     }
 
-    private static List<TypeDefinition> GetOrLoadFrameworkTypes(List<ModuleDefinition> modules, FrameworkCache frameworkCache)
+    private static List<TypeDefinition> GetOrLoadFrameworkTypes(List<ModuleDefinition> modules, List<string>? frameworkPathsOverride,
+        FrameworkCache frameworkCache)
     {
-        if (frameworkCache.Types != null) return frameworkCache.Types;
-
-        var loadedModules = new List<ModuleDefinition>();
-        if (FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var frameworkDir) && frameworkDir != null)
+        List<string> entries;
+        if (frameworkPathsOverride is { Count: > 0 })
         {
-            var paths = FrameworkDiscovery.DiscoverAssemblyPaths(frameworkDir);
-            loadedModules.AddRange(AssemblyLoading.LoadModules(paths));
+            entries = frameworkPathsOverride;
+        }
+        else
+        {
+            // frameworkPathsOverride is either null (shouldn't reach here - the caller only
+            // invokes this when FrameworkPaths != null) or empty (bare --framework-dir:
+            // auto-discover the local shared framework).
+            if (!FrameworkDiscovery.TryLocateSharedFrameworkDirectory(modules, out var directory) || directory == null)
+            {
+                return frameworkCache.Types ?? [];
+            }
+
+            entries = [directory];
         }
 
-        var types = new List<TypeDefinition>();
-        foreach (var module in loadedModules)
+        var currentResolver = modules.Count > 0 ? modules[0].AssemblyResolver as DefaultAssemblyResolver : null;
+        var normalizedEntries = NormalizeForCacheKey(entries);
+
+        if (!PathSetsEqual(normalizedEntries, frameworkCache.Paths))
         {
-            types.AddRange(module.GetTypes());
+            if (frameworkCache.Modules != null)
+            {
+                foreach (var module in frameworkCache.Modules)
+                {
+                    module.Dispose();
+                }
+            }
+
+            var paths = FrameworkDiscovery.ResolveAssemblyPaths(entries);
+            var loadedModules = currentResolver != null
+                ? AssemblyLoading.LoadModules(paths, currentResolver, out _)
+                : AssemblyLoading.LoadModules(paths, out _);
+
+            var types = new List<TypeDefinition>();
+            foreach (var module in loadedModules)
+            {
+                types.AddRange(module.GetTypes());
+            }
+
+            frameworkCache.Paths = normalizedEntries;
+            frameworkCache.Modules = loadedModules;
+            frameworkCache.Types = types;
+            frameworkCache.AppliedTo = currentResolver;
+        }
+        else if (currentResolver != null && !ReferenceEquals(currentResolver, frameworkCache.AppliedTo))
+        {
+            // modules was reloaded (rebuild) since these paths were last registered on its
+            // resolver - the framework modules themselves are still valid, just re-point the new
+            // resolver instance at the same on-disk directories (a loose file entry has no
+            // search-directory role here).
+            foreach (var entry in entries)
+            {
+                if (Directory.Exists(entry))
+                {
+                    currentResolver.AddSearchDirectory(entry);
+                }
+            }
+
+            frameworkCache.AppliedTo = currentResolver;
         }
 
-        frameworkCache.Modules = loadedModules;
-        frameworkCache.Types = types;
-        return types;
+        return frameworkCache.Types ?? [];
     }
 
-    private static (int ExitCode, string Stdout, string Stderr) RunDispatchCapturingOutput(DaemonDispatch dispatch, DaemonRequest request, List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes)
+    private static List<string> NormalizeForCacheKey(List<string> entries)
+    {
+        var normalized = entries.Select(Path.GetFullPath).ToList();
+        normalized.Sort(StringComparer.OrdinalIgnoreCase);
+        return normalized;
+    }
+
+    private static bool PathSetsEqual(List<string> normalizedEntries, List<string>? cachedPaths)
+    {
+        if (cachedPaths == null) return false;
+        if (normalizedEntries.Count != cachedPaths.Count) return false;
+        for (var i = 0; i < normalizedEntries.Count; i++)
+        {
+            if (!string.Equals(normalizedEntries[i], cachedPaths[i], StringComparison.OrdinalIgnoreCase)) return false;
+        }
+
+        return true;
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunDispatchCapturingOutput(DaemonDispatch dispatch, DaemonRequest request,
+        List<ModuleDefinition> modules, List<TypeDefinition> allTypes, Func<List<TypeDefinition>>? autoFrameworkTypes)
     {
         var originalOut = Console.Out;
         var originalError = Console.Error;
@@ -268,10 +338,13 @@ public static class DaemonHost
         var raw = Environment.GetEnvironmentVariable("DAQ_DAEMON_IDLE_TIMEOUT_SECONDS");
         return int.TryParse(raw, out var seconds) && seconds > 0 ? seconds : DefaultIdleTimeoutSeconds;
     }
+
     private sealed class FrameworkCache
     {
+        public List<string>? Paths;
         public List<ModuleDefinition>? Modules;
         public List<TypeDefinition>? Types;
+        public DefaultAssemblyResolver? AppliedTo;
     }
 }
 
